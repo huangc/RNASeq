@@ -1,0 +1,58 @@
+## General
+EMAIL=youremail@indiana.edu
+WORK_DIR=$(pwd)
+
+## Sub-directory for workflow
+prereq_DIR=${WORK_DIR}/prereq
+doc_DIR=${WORK_DIR}/doc
+bin_DIR=${WORK_DIR}/bin
+src_DIR=${WORK_DIR}/src
+data_DIR=${WORK_DIR}/data
+run_DIR=${WORK_DIR}/run
+scratch_DIR=${WORK_DIR}/scratch
+
+# REFSEQ is the fasta file for reference genome, retrieved by bin/xgetseq, and located in prereq/. 
+REFSEQ=OsjCHR.fa
+# REFSEQ=OsjChr10.fa
+# REFSEQNAME is the file name for REFSEQ without file extension.
+REFSEQNAME=OsjCHR
+# REFSEQNAME=OsjChr10
+# REFGFF is the gene annotation gff3 file for REFSEQ, retrieved by bin/xgetseq, and located in prereq/.
+REFGFF=OsjCHR.gff3
+# MSUGFF is the gene annotation gff3 file similar to REFSEQ, but retrieved from MSU site. 
+# The file format of MSUREF, but not the content, is different from REFSEQ, and is used by the ilocus finding program, locuspocus.
+MSUGFF=OsjCHR_msu.gff3
+
+# SAMPLE is a list of sample names. Each sample name should be only one word.
+SAMPLE="YB1 YB2 YB3 YB4 YB5 YB6 YB7 YB8 GINMASARI KOTOBUKIMOCHI NIPPONBARE SACHIKAZE BINIAPAN KOTOOURA PATIEROUGE MANYALOJOPOIHUN A\
+2_257 ARC11571 JC_157 KEYANUNIA MADHUWAKARIA CR441 OSATIVA CHINGCHUNG NIAOYAO CHINGLIU"
+# SAMPLE="A2_257 BINIAPAN CHINGLIU GINMASARI KEYANUNIA KOTOOURA MANYALOJOPOIHUN NIPPONBARE PATIEROUGE ARC11571 CHINGCHUNG CR441 JC_\
+157 KOTOBUKIMOCHI MADHUWAKARIA NIAOYAO OSATIVA SACHIKAZE"
+# SAMPLE="YB1 YB2 YB3 YB4 YB5 YB6 YB7 YB8"
+# SAMPLE="ZHENGSHAN97test ZHENGSHAN97test2"
+# SAMPLENAME is the collected sample name for reporting purpose, such as YB for all samples of YB1..YB8
+SAMPLENAME=VarYB
+# SAMPLENUM is the number of samples in this study
+SAMPLENUM=26
+
+## blastn
+# Add blast+ directory to the PATH
+export PATH=$PATH:/N/dc2/projects/brendelgroup/TRegGA/bin
+# export PATH=$PATH:${src_DIR}/blast/ncbi-blast-2.3.0+/bin
+# DB_REFSEQ is the BlastDB name for the reference sequence.
+# Use OsjCHR for the whole genome
+DB_REFSEQ=OsjCHR
+# Use individual chromosome such as OsjChr10 for target region.
+# DB_REFSEQ=OsjChr10
+# OUTFMT is the tabular output format for BlastDB query
+OUTFMT="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore gaps qcovs qcovhsp"
+EVALUE="1e-100"
+# PERC_IDENTITY=99
+NUM_THREADS=4
+# GAP_MINNUM=0 #Minimal number of gaps, more than and not including this number.
+# GAP_MINSIZE=4 #Minimal size of total gaps, more than and not including this number.
+# REWARD=1
+# PENALTY=-1
+# GAPOPEN=4
+# GAPEXTEND=1
+
