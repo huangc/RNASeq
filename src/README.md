@@ -103,19 +103,6 @@ ln -s $(pwd)/FastQC/fastqc $TRegGA_DIR/local/bin/fastqc
 
 For installation instructions, see https://www.r-project.org.
 
-### Samtools
-
-See http://www.htslib.org.
-Last update: December 3, 2015.
-
-```bash
-cd $TRegGA_DIR/local/src/
-wget https://github.com/samtools/samtools/releases/download/1.2/samtools-1.2.tar.bz2
-tar -xjf samtools-1.2.tar.bz2
-cd samtools-1.2/
-make prefix=$TRegGA_DIR/local
-make prefix=$TRegGA_DIR/local install
-```
 
 ### RSEM and EBSeq (EBSeq is included in RSEM v1.2.9 and above)
 
@@ -142,6 +129,20 @@ make ebseq
 # To install RSEM, simply put the RSEM directory in your environment's PATH variable.
 export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH
 
+```
+
+### Samtools
+
+See http://www.htslib.org.
+Last update: December 3, 2015.
+
+```bash
+cd $TRegGA_DIR/local/src/
+wget https://github.com/samtools/samtools/releases/download/1.2/samtools-1.2.tar.bz2
+tar -xjf samtools-1.2.tar.bz2
+cd samtools-1.2/
+make prefix=$TRegGA_DIR/local
+make prefix=$TRegGA_DIR/local install
 ```
 
 ### STAR RNA-seq aligner
