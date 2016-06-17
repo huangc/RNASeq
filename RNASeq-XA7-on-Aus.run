@@ -82,16 +82,29 @@ ln -s ${RAWREAD_DIR}/L2.3*_2.fq.gz C2_L23_2.fastq.gz
 
 # modify the Makefile_GPR-orig
 \cp Makefile_GPR-orig Makefile_GPR-orig-orig
+sed -i 's/include TRegGA.config/include RNASeq.config/;' Makefile_GPR-orig
 sed -i 's/SOURCE            = ebisra/#SOURCE            = ebisra/;' Makefile_GPR-orig
 sed -i 's/#SOURCE            = local/SOURCE            = local/;' Makefile_GPR-orig
-SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
-for SYNONYM in ${SAMPLE}
-do 
-sed 
-
+# Patch the following:
+else
+	SAMPLE            = RNA_SAMPLE#  label used below to identify the location of the read files
+        SYNONYM           = RNA_SYNONYM#  Replace LABEL with an appropriate cultivar name; here IRBB7
+        FASTQDIR          = ${WORK_DIR}/run/reads
+        ACCESSIONS        = RNA_ACCESSIONS#  Choice for demo2, after demo1 was run
+# remove the readsasfasta step
+sed -i 's/trimmedreads readsasfasta fastqca/trimmedreads fastqca/;' Makefile_GPR-orig
 
 # submit makefile jobs
-make -j $NUMPROC -I../ -I../../ -f Makefile_GPR_$SYNONYM >& err_$SYNONYM
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+NUMPROC=4
+
+for i in ${SAMPLE}
+do
+sed 's/SAMPLE            = RNA_SAMPLE/SAMPLE            = IRBB7/;' Makefile_GPR-orig > Makefile_GPR-${i}
+sed -i "s/SYNONYM           = RNA_SYNONYM/SYNONYM           = $i/;" Makefile_GPR-${i}
+sed -i "s/ACCESSIONS        = RNA_ACCESSIONS/ACCESSIONS        = $i/;" Makefile_GPR-${i}
+make -j $NUMPROC -I../ -I../../ -f Makefile_GPR-${i} >& err_${i}
+done
 
 ##-----------
 ## Prepare reference for RSEM
