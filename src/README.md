@@ -144,6 +144,20 @@ export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH
 
 ```
 
+### STAR RNA-seq aligner
+
+See https://github.com/alexdobin/STAR
+
+```bash
+cd ${WORK_DIR}/src
+git clone https://github.com/alexdobin/STAR.git
+cd STAR
+# Build STAR
+make STAR
+# To include STAR-Fusion
+git submodule update --init --recursive
+
+```
 ### Trimmomatic
 
 See http://www.usadellab.org/cms/index.php?page=trimmomatic.
