@@ -5,6 +5,7 @@
 """
 Last update 6/16/2016
 Author: Huang, Chun-Yuan
+Usage: python annotation_by_sliding_window.py myseq.fa 1 1000 1000 myseq.gff
 
 # this takes inputs of:
 1. sequence file, single entry fasta sequence.
@@ -13,7 +14,6 @@ Author: Huang, Chun-Yuan
 4. step size (stepSize) for stepping through the sliding windows (default to be the same as the winSize so no overlapping in the annotation.
     For RNASeq DE gene analysis, there should be no overlapping in the annotation to avoid complication in interpreting the mapped read counts),
 5. gff output file name
-Usage: python annotation_by_sliding_window.py myseq.fa 1 1000 1000 myseq.gff
 
 The GFF (General Feature Format) format consists of one line per feature, each containing 9 columns of data, plus optional track definition lines.
 Fields must be tab-separated. Also, all but the final field in each feature line must contain a value; "empty" columns should be denoted with a '.'
