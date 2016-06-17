@@ -1,0 +1,238 @@
+## RNASeq is a workflow to find Differentially Expressed (DE) genes using RNS-Seq reads data.
+
+#### Xa7 Target region:
+* M5_Xa7QTL_BY in OsaChr6 is 26,752,440-26,752,775, or 27,007,346-27,007,090
+* M5_56k_Xa7QTL_BY in OsaChr6 is 26,776,166-26,777,887
+* M5_M5-56K in rice aus Kasalath (OsaXa7) is chr6:26,752,440..26,776,166..26,777,887..(27,007,090), Length=25,448 (or 254,651) bp.
+* M5_M5-56K in rice aus Kasalath (OsaXa7) is redefined to chr6:26,625,001..27,007,500, Length=382,500 bp.
+* DJ123 scaffold_10 has VERY good coverage on the Xa7QTL region
+* Transfer annotaion from rice aus reference Kasalath to rice aus DJ123 scaffold_10:197,410..199,218 
+* DJ123 scaffold_10 full length is 1,279,957 bp
+* M5_56k_Xa7QTL_BY in DJ123_scaffold10 is 197,410-198,218; M5 could not be found in DJ123_scaffold10.
+* BY_p53P5L2_IRBB7_Xa7 aligned 59,812bp (out of 62,882 bp, or 95.12%) with DJ123_scaffold10.
+* BY_p53P5L2_IRBB7_Xa7 aligned 50,087bp (out of 62,882 bp, or 79.65%) with IRBB7-DJ123_scaffold10. 
+
+#### RNA-Seq analysis
+cd /projects/huangcy/MYGIT/RNASeq
+source RNASeq.source
+
+##-----------------------------------------
+## Prepare targets
+cd ${WORK_DIR}/targets
+# copy the following fasta and embl files from either ${TRegGA_DIR}/targets or 
+# ${TRegGA_DIR}/assembly/rfguided/${SYNONYM}-on-${TARGET}/EVALUATION/${SYNONYM}-${TARGET}.fa and embl to here.
+SAMPLE="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7 \
+DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+
+##-----------------------------------------
+## Generate the annotation_by_sliding_window gff file using 1-kb sliding window method, with starting position at 1 and 501 separately.
+for i in ${SAMPLE}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+
+python ../bin/annotation_by_sliding_window.py ${i}.fa 1 1000 1000 ${i}_1_1000.gff
+python ../bin/annotation_by_sliding_window.py ${i}.fa 501 1000 1000 ${i}_501_1000.gff
+SUBJECTGFF1=${i}_1_1000.gff
+SUBJECTGFF501=${i}_501_1000.gff
+
+done
+
+##-------------------------------------------
+## Prepare reads with TRegGA Makefile_GPR-orig
+# Raw reads are here:
+# /projects/huangcy/DATA/IRBB7_RNASEQ_RAW
+# Rename the reads to more standard and sensible names. Take only the most distinguishing feature part as the name.
+# strain [.1] (pH) containing no TALe
+# Strain [.2] (pH+avrXa7) for R gene Xa7 in IRBB7
+# strain [.3] (pH+Sac50) for another uncharacterized R gene in IRBB7.
+# Original names: *.fq.gz
+# To be compatible with the TRegGA, rename to *.fastq.gz
+# L1.1-a_FCD2D8FACXX_L7_RICydfTAARAAPEI-93_1.fq.gz
+# L1.1-a_FCD2D8FACXX_L7_RICydfTAARAAPEI-93_2.fq.gz
+# L1.1-b_FCD2D8FACXX_L7_RICydfTABRAAPEI-94_1.fq.gz
+# L1.1-b_FCD2D8FACXX_L7_RICydfTABRAAPEI-94_2.fq.gz
+# L1.2_FCD2D8FACXX_L7_RICydfTACRAAPEI-109_1.fq.gz
+# L1.2_FCD2D8FACXX_L7_RICydfTACRAAPEI-109_2.fq.gz
+# L1.3_FCD2D8HACXX_L4_RICydfTADRAAPEI-118_1.fq.gz
+# L1.3_FCD2D8HACXX_L4_RICydfTADRAAPEI-118_2.fq.gz
+# L2.2_FCD2D8HACXX_L4_RICydfTAERAAPEI-126_1.fq.gz
+# L2.2_FCD2D8HACXX_L4_RICydfTAERAAPEI-126_2.fq.gz
+# L2.3_FCD2D8HACXX_L4_RICydfTAFRAAPEI-18_1.fq.gz
+# L2.3_FCD2D8HACXX_L4_RICydfTAFRAAPEI-18_2.fq.gz
+
+cd ${WORK_DIR}/run
+mkdir -p reads
+cd reads
+ln -s ${RAWREAD_DIR}/L1.1-a*_1.fq.gz A1_L11a_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-a*_2.fq.gz A1_L11a_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-b*_1.fq.gz A2_L11b_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-b*_2.fq.gz A2_L11b_2.fastq.gz
+
+ln -s ${RAWREAD_DIR}/L1.2*_1.fq.gz B1_L12_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.2*_2.fq.gz B1_L12_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.2*_1.fq.gz B2_L22_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.2*_2.fq.gz B2_L22_2.fastq.gz
+
+ln -s ${RAWREAD_DIR}/L1.3*_1.fq.gz C1_L13_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.3*_2.fq.gz C1_L13_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.3*_1.fq.gz C2_L23_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.3*_2.fq.gz C2_L23_2.fastq.gz
+
+# modify the Makefile_GPR-orig
+\cp Makefile_GPR-orig Makefile_GPR-orig-orig
+sed -i 's/SOURCE            = ebisra/#SOURCE            = ebisra/;' Makefile_GPR-orig
+sed -i 's/#SOURCE            = local/SOURCE            = local/;' Makefile_GPR-orig
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+for SYNONYM in ${SAMPLE}
+do 
+sed 
+
+
+# submit makefile jobs
+make -j $NUMPROC -I../ -I../../ -f Makefile_GPR_$SYNONYM >& err_$SYNONYM
+
+##-----------
+## Prepare reference for RSEM
+mkdir 05_rsem-prepare-reference
+cd 05_rsem-prepare-reference
+
+# Link the Reference-assisted de novo assembled pseudomolecule to here.
+cp -s ../00_REF/MYSEQ.fa .
+
+# Link the Reference-assisted de novo assembled pseudomolecule annotation to here.
+cp -s ../00_REF/MYSEQ.gtf .
+
+##-----------
+## RSEM-calculate-expression
+module add bowtie/0.12.8
+module add rsem/1.2.5
+
+cd $PBS_O_WORKDIR
+mkdir 06_rsem-calculate-expression
+cd 06_rsem-calculate-expression
+
+# Link Trimmomatic-trimmed reads from ../../00_COMMONS/00_REF to here
+cp -s ../../00_COMMONS/00_REF/*P.fq .
+
+# Link the Reference-assisted de novo assembled pseudomolecule to here.
+cp -s ../00_REF/MYSEQ.fa .
+
+# Link the Reference-assisted de novo assembled pseudomolecule annotation to here.
+cp -s ../00_REF/MYSEQ.gtf .
+
+# Construct a Filename list "MyFilenameList.txt" that have these three columns: Filename_1_1P.fq, Filename_1_2P.fq, Filename:
+ls -1 *_1P.fq | sort > col1.txt
+ls -1 *_2P.fq | sort > col2.txt
+ls -1 *_1P.fq | sort | sed s/_1P\.fq//g > col3.txt
+
+# paste will use tab "\t" as delimiter by default. Change it to space ' '
+paste -d' ' col1.txt col2.txt col3.txt > cols.txt
+
+# Iterating over a list of named files
+MyFilenameList=`cat cols.txt | tail -n +${PBS_ARRAYID} | head -1`
+
+# Split the parameters in MyFilenameList into array using space ' ' as delimiter. "read -a MyFilenameArray" is to read the content from MyFilenameList into an array "-a"
+IFS=' ' read -a MyFilenameArray <<< "${MyFilenameList}"
+
+# echo ${MyFilenameArray[0]} > ${PBS_ARRAYID}_Array0.txt
+# echo ${MyFilenameArray[1]} > ${PBS_ARRAYID}_Array1.txt
+# echo ${MyFilenameArray[2]} > ${PBS_ARRAYID}_Array2.txt
+
+# calculate RNA-Seq expression by RSEM
+rsem-calculate-expression --bowtie-path /N/soft/mason/bowtie/0.12.8 --paired-end -p 8 --output-genome-bam --calc-ci --time --seed-length 80 ${MyFilenameArray[0]} ${MyFilenameArray[1]} ../05_rsem-prepare-reference/MYSEQ ${MyFilenameArray[2]}
+
+# prepare reference genome for RSEM
+rsem-prepare-reference --gtf MYSEQ.gtf --bowtie-path /N/soft/mason/bowtie/0.12.8 MYSEQ.fa  MYSEQ
+
+##---------------------
+## EBSeq
+# The RSEM that come with Mason does NOT contain EBSeq installed. Need to UNLOAD module RSEM, if loaded earlier, otherwise the call for EBSeq will fail to fi\
+nd it.
+
+module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
+module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
+module add R/2.15.2 # R is required for EBSeq installation
+export PATH=~/src/rsem-1.2.9:~/src/rsem-1.2.9/EBSeq:$PATH #add my version of RSEM and EBSeq to $PATH
+
+cd $PBS_O_WORKDIR
+mkdir 07_rsem-ebseq
+cd 07_rsem-ebseq
+
+
+# Link the *.transcripts.fa file from rsem-prepare-reference to here
+cp -s ../05_rsem-prepare-reference/*.transcripts.fa .
+
+# Link the *.genes.results and *.isoforms.results files from rsem-calculate-expression to here
+cp -s ../06_rsem-calculate-expression/*.results .
+
+
+### 07_01_rsem-generate-ngvector
+ls -1 *.transcripts.fa | xargs -I {} rsem-generate-ngvector {} EBSeq.isoform
+
+
+### 07_02_rsem-generate-data-matrix
+# data_matrix_file is a m by n matrix. m is the number of genes/transcripts and n is the number of total samples.
+
+## run gene level of rsem-generate-data-matrix.
+genes_results_list=`ls *.genes.results`
+
+# Split the parameters in genes_results_list into array. Note that array index starts at "0".
+read -a genes_results_array <<< $genes_results_list
+rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[0]} ${genes_results_array[1]} > BvsA.genes.counts.matrix
+rsem-generate-data-matrix ${genes_results_array[4]} ${genes_results_array[5]} ${genes_results_array[0]} ${genes_results_array[1]} > CvsA.genes.counts.matrix
+rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[4]} ${genes_results_array[5]} > BvsC.genes.counts.matrix
+rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[4]} ${genes_results_array[5]} ${genes_results_array[0]} $\
+{genes_results_array[1]} > BvsCvsA.genes.counts.matrix
+
+## run isoform level of rsem-generate-data-matrix.
+isoforms_results_list=`ls *.isoforms.results`
+
+
+# Split the parameters in isoforms_results_list into array. Note that array index starts at "0".
+read -a isoforms_results_array <<< $isoforms_results_list
+rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[0]} ${isoforms_results_array[1]} > BvsA.isoforms\
+.counts.matrix
+rsem-generate-data-matrix ${isoforms_results_array[4]} ${isoforms_results_array[5]} ${isoforms_results_array[0]} ${isoforms_results_array[1]} > CvsA.isoforms\
+.counts.matrix
+rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[4]} ${isoforms_results_array[5]} > BvsC.isoforms\
+.counts.matrix
+rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[4]} ${isoforms_results_array[5]} ${isoforms_resu\
+lts_array[0]} ${isoforms_results_array[1]} > BvsCvsA.isoforms.counts.matrix
+
+
+### 07_03_rsem-run-ebseq
+# conditions is comma-separated list of values representing the number of replicates for each condition. For example, "3,3" means the data set contains 2 con\
+ditions and each condition has 3 replicates. "2,3,3" means the data set contains 3 conditions, with 2, 3, and 3 replicates for each condition respectively.
+
+## run gene level of DE analysis by EBSeq.
+rsem-run-ebseq BvsA.genes.counts.matrix 2,2 BvsA.genes.counts.matrix.results
+rsem-run-ebseq CvsA.genes.counts.matrix 2,2 CvsA.genes.counts.matrix.results
+rsem-run-ebseq BvsC.genes.counts.matrix 2,2 BvsC.genes.counts.matrix.results
+rsem-run-ebseq BvsCvsA.genes.counts.matrix 2,2,2 BvsCvsA.genes.counts.matrix.results
+
+# run isoform level of DE analysis by EBSeq.
+rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsA.isoforms.counts.matrix 2,2 BvsA.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform.ngvec CvsA.isoforms.counts.matrix 2,2 CvsA.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsC.isoforms.counts.matrix 2,2 BvsC.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsCvsA.isoforms.counts.matrix 2,2,2 BvsCvsA.isoforms.counts.matrix.results
+
+
+### 07_04_rsem-control-fdr
+## Find DE genes by FDR 0.05.
+rsem-control-fdr BvsA.genes.counts.matrix.results 0.05 BvsA.genes.DE005.txt
+rsem-control-fdr CvsA.genes.counts.matrix.results 0.05 CvsA.genes.DE005.txt
+rsem-control-fdr BvsC.genes.counts.matrix.results 0.05 BvsC.genes.DE005.txt
+rsem-control-fdr BvsCvsA.genes.counts.matrix.results 0.05 BvsCvsA.genes.DE005.txt
+
+## Find DE isoforms by FDR 0.05.
+rsem-control-fdr BvsA.isoforms.counts.matrix.results 0.05 BvsA.isoforms.DE005.txt
+rsem-control-fdr CvsA.isoforms.counts.matrix.results 0.05 CvsA.isoforms.DE005.txt
+rsem-control-fdr BvsC.isoforms.counts.matrix.results 0.05 BvsC.isoforms.DE005.txt
+rsem-control-fdr BvsCvsA.isoforms.counts.matrix.results 0.05 BvsCvsA.isoforms.DE005.txt
+
+
+
+
+
