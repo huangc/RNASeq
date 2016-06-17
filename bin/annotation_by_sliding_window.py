@@ -1,5 +1,4 @@
 #!/home/huangcy/src/anaconda3/bin/python3.5
-# author: huangcy
 # -*- coding: utf-8 -*-
 
 """
