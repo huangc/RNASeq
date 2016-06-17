@@ -117,8 +117,36 @@ make prefix=$TRegGA_DIR/local
 make prefix=$TRegGA_DIR/local install
 ```
 
-### RSEM
-EBSeq (that is included in the RSEM-1.2.9 and above). 
+### RSEM and EBSeq (EBSeq is included in RSEM v1.2.9 and above)
+
+See https://github.com/deweylab/RSEM
+Last update: Jun 4, 2016, RSEM v1.2.31
+C++, Perl and R are required to be installed.
+To use the --gff3 option of rsem-prepare-reference, Python is also required to be installed.
+To take advantage of RSEM's built-in support for the Bowtie/Bowtie 2/STAR alignment program, you must have Bowtie/Bowtie 2/STAR installed.
+ 
+# In mason
+module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
+module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
+module add R/2.15.2 # R is required for EBSeq installation
+export PATH=~/src/rsem-1.2.9:~/src/rsem-1.2.9/EBSeq:$PATH #add my version of RSEM and EBSeq to $PATH
+
+```bash
+cd ${WORK_DIR}/src
+git clone https://github.com/deweylab/RSEM.git
+cd RSEM
+# To compile RSEM, simply run
+make
+# To compile EBSeq, which is included in the RSEM package, run
+make ebseq
+# To install RSEM, simply put the RSEM directory in your environment's PATH variable. Alternatively, run
+make install
+# By default, RSEM executables are installed to /usr/local/bin. You can change the installation location by setting DESTDIR and/or prefix variables. 
+# The RSEM executables will be installed to ${DESTDIR}${prefix}/bin. The default values of DESTDIR and prefix are DESTDIR= and prefix=/usr/local. For example,
+# make install DESTDIR=/home/my_name prefix=/software
+# will install RSEM executables to /home/my_name/software/bin.
+
+```
 
 ### Trimmomatic
 
