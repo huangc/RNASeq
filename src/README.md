@@ -157,6 +157,7 @@ cd STAR
 make STAR
 # To include STAR-Fusion
 git submodule update --init --recursive
+export PATH=${WORK_DIR}/src/STAR/bin/Linux_x86_64
 
 ```
 ### Trimmomatic
