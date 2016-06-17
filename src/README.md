@@ -125,7 +125,7 @@ C++, Perl and R are required to be installed.
 To use the --gff3 option of rsem-prepare-reference, Python is also required to be installed.
 To take advantage of RSEM's built-in support for the Bowtie/Bowtie 2/STAR alignment program, you must have Bowtie/Bowtie 2/STAR installed.
  
-# In mason
+##### In mason
 module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
 module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
 module add R/2.15.2 # R is required for EBSeq installation
