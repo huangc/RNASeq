@@ -139,12 +139,8 @@ cd RSEM
 make
 # To compile EBSeq, which is included in the RSEM package, run
 make ebseq
-# To install RSEM, simply put the RSEM directory in your environment's PATH variable. Alternatively, run
-make install
-# By default, RSEM executables are installed to /usr/local/bin. You can change the installation location by setting DESTDIR and/or prefix variables. 
-# The RSEM executables will be installed to ${DESTDIR}${prefix}/bin. The default values of DESTDIR and prefix are DESTDIR= and prefix=/usr/local. For example,
-# make install DESTDIR=/home/my_name prefix=/software
-# will install RSEM executables to /home/my_name/software/bin.
+# To install RSEM, simply put the RSEM directory in your environment's PATH variable.
+export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
 
 ```
 
