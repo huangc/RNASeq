@@ -1,12 +1,13 @@
 #!/usr/bin/python3.4
+# author: huangcy
 # -*- coding: utf-8 -*-
 
 """
-Last update 6/14/2016
+Last update 6/16/2016
 Author: Huang, Chun-Yuan
 
 # this takes inputs of:
-1. sequence file, single fasta sequence.
+1. sequence file, single entry fasta sequence.
 2. start position (winStart) for slidingWindow process,
 3. window size (winSize) of bases for splitting,
 4. step size (stepSize) for stepping through the sliding windows (default to be the same as the winSize so no overlapping in the annotation.
@@ -37,9 +38,9 @@ p53_P5L2_sequence AUGUSTUS exon 2001 3000 1 + 0 "transcript_id ""g3.t1""; gene_i
 
 """
 
-def slidingWindow(sequence, winStart, winSize, stepSize, outfile):
+def slidingWindow(infile, winStart, winSize, stepSize, outfile):
     from Bio import SeqIO
-    SeqRecord = SeqIO.read(sequence, "fasta")
+    SeqRecord = SeqIO.read(infile, "fasta")
     seqLen = len(SeqRecord.seq)
     # Pre-compute number of steps to emit
     stepNum = (seqLen - winStart - winSize) / stepSize
@@ -49,8 +50,8 @@ def slidingWindow(sequence, winStart, winSize, stepSize, outfile):
 
     # Do the work
     output_file = open(outfile,"a")
-    SEQNAME = sequence
-    SOURCE = "slidingWindow"
+    SEQNAME = SeqRecord.id
+    SOURCE = "slidingWindowBy" + str(winSize) + "StepBy" + str(stepSize) 
     FEATURE = "exon"
     SCORE = 1
     STRAND = "+"
@@ -79,5 +80,4 @@ parser.add_argument("outfile", type=str, help="output file")
 if __name__ == '__main__':
     args = parser.parse_args()
     slidingWindow(args.infile, args.winStart, args.winSize, args.stepSize, args.outfile)
-
 
