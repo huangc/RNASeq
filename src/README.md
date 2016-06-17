@@ -140,7 +140,7 @@ make
 # To compile EBSeq, which is included in the RSEM package, run
 make ebseq
 # To install RSEM, simply put the RSEM directory in your environment's PATH variable.
-export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
+export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH
 
 ```
 
