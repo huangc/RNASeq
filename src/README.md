@@ -147,6 +147,7 @@ export PATH=${WORK_DIR}/src/RSEM:${WORK_DIR}/src/RSEM/EBSeq:$PATH
 ### STAR RNA-seq aligner
 
 See https://github.com/alexdobin/STAR
+Last update: 11/6/2015.
 
 ```bash
 cd ${WORK_DIR}/src
