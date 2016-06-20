@@ -100,7 +100,7 @@ NUMPROC=4
 for i in ${SAMPLE}
 do
 cd ${WORK_DIR}/run/reads
-mkdir -p ${i}
+mkdir ${i}
 cd ${i}
 \cp ../Makefile_GPR-orig Makefile_GPR-${i}
 sed 's/SAMPLE            = RNA_SAMPLE/SAMPLE            = IRBB7/;' Makefile_GPR-${i}
@@ -120,11 +120,11 @@ module add rsem/1.2.19
 SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
 # TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10\
 # OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7"
-# TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10"
-TARGET="IRBB7-DJ123_scaffold10"
+# TARGET="OsaXA7 IRBB7-OsaXA7"
+TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10"
 BOWTIE_DIR=/usr/local/src/NGS-DIR/BOWTIE/bowtie
 STAR_DIR=~/src/STAR/bin/Linux_x86_64
-THREADS=2
+THREADS=1
 SEED_LENGTH=80 #Seed length used by the read aligner.
 
 ##-----------------------------------------
@@ -139,8 +139,8 @@ SUBJECTGFF1=${i}_1_1000.gtf
 SUBJECTGFF501=${i}_501_1000.gtf
 
 # prepare reference genome for Bowtie aligner
-rsem-prepare-reference --gtf ${SUBJECTGFF1} --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
-# rsem-prepare-reference --gtf ${SUBJECTGFF501} --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
+rsem-prepare-reference --gtf ${SUBJECTGFF1} --bowtie --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
+# rsem-prepare-reference --gtf ${SUBJECTGFF501} --bowtie --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
 
 # prepare reference genome for STAR aligner
 # rsem-prepare-reference --gtf ${SUBJECTGFF1} --star --star-path ${STAR_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
@@ -254,6 +254,8 @@ rsem-control-fdr BvsA.isoforms.counts.matrix.results 0.05 BvsA.isoforms.DE005.tx
 rsem-control-fdr CvsA.isoforms.counts.matrix.results 0.05 CvsA.isoforms.DE005.txt
 rsem-control-fdr BvsC.isoforms.counts.matrix.results 0.05 BvsC.isoforms.DE005.txt
 rsem-control-fdr BvsCvsA.isoforms.counts.matrix.results 0.05 BvsCvsA.isoforms.DE005.txt
+
+
 
 
 
