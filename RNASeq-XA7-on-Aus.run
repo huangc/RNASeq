@@ -21,21 +21,21 @@ source RNASeq.source
 cd ${WORK_DIR}/targets
 # copy the following fasta and embl files from either ${TRegGA_DIR}/targets or 
 # ${TRegGA_DIR}/assembly/rfguided/${SYNONYM}-on-${TARGET}/EVALUATION/${SYNONYM}-${TARGET}.fa and embl to here.
-SAMPLE="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7 \
+TARGET="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7 \
 DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
 
 ##-----------------------------------------
 ## Generate the annotation_by_sliding_window gff file using 1-kb sliding window method, with starting position at 1 and 501 separately.
-for i in ${SAMPLE}
+for i in ${TARGET}
 do
 SUBJECTNAME=${i}
 SUBJECTFA=${i}.fa
 SUBJECTEMBL=${i}.embl
 
-python ../bin/annotation_by_sliding_window.py ${i}.fa 1 1000 1000 ${i}_1_1000.gff
-python ../bin/annotation_by_sliding_window.py ${i}.fa 501 1000 1000 ${i}_501_1000.gff
-SUBJECTGFF1=${i}_1_1000.gff
-SUBJECTGFF501=${i}_501_1000.gff
+python ../bin/annotation_by_sliding_window.py ${i}.fa 1 1000 1000 ${i}_1_1000.gtf
+python ../bin/annotation_by_sliding_window.py ${i}.fa 501 1000 1000 ${i}_501_1000.gtf
+SUBJECTGFF1=${i}_1_1000.gtf
+SUBJECTGFF501=${i}_501_1000.gtf
 
 done
 
@@ -107,67 +107,73 @@ make -j $NUMPROC -I../ -I../../ -f Makefile_GPR-${i} >& err_${i}
 done
 
 ##-----------
-## Prepare reference for RSEM
-mkdir 05_rsem-prepare-reference
-cd 05_rsem-prepare-reference
-
-# Link the Reference-assisted de novo assembled pseudomolecule to here.
-cp -s ../00_REF/MYSEQ.fa .
-
-# Link the Reference-assisted de novo assembled pseudomolecule annotation to here.
-cp -s ../00_REF/MYSEQ.gtf .
-
-##-----------
-## RSEM-calculate-expression
+## run RSEM for estimating gene and isoform expression levels
+cd ${WORK_DIR}/run
+mkdir -p rsem
+cd rsem
 module add bowtie/0.12.8
-module add rsem/1.2.5
+module add rsem/1.2.19
 
-cd $PBS_O_WORKDIR
-mkdir 06_rsem-calculate-expression
-cd 06_rsem-calculate-expression
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+# TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10\
+ OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7"
+TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10"
+BOWTIE_DIR=/usr/local/src/NGS-DIR/BOWTIE/bowtie/bowtie
+STAR_DIR=~/src/STAR/bin/Linux_x86_64
+THREADS=1
+SEED_LENGTH=80 #Seed length used by the read aligner.
 
-# Link Trimmomatic-trimmed reads from ../../00_COMMONS/00_REF to here
-cp -s ../../00_COMMONS/00_REF/*P.fq .
+##-----------------------------------------
+#
+cd ${WORK_DIR}/targets
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF1=${i}_1_1000.gtf
+SUBJECTGFF501=${i}_501_1000.gtf
 
-# Link the Reference-assisted de novo assembled pseudomolecule to here.
-cp -s ../00_REF/MYSEQ.fa .
+# prepare reference genome for Bowtie aligner
+rsem-prepare-reference --gtf ${SUBJECTGFF1} --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
+# rsem-prepare-reference --gtf ${SUBJECTGFF501} --bowtie-path ${BOWTIE_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
 
-# Link the Reference-assisted de novo assembled pseudomolecule annotation to here.
-cp -s ../00_REF/MYSEQ.gtf .
-
-# Construct a Filename list "MyFilenameList.txt" that have these three columns: Filename_1_1P.fq, Filename_1_2P.fq, Filename:
-ls -1 *_1P.fq | sort > col1.txt
-ls -1 *_2P.fq | sort > col2.txt
-ls -1 *_1P.fq | sort | sed s/_1P\.fq//g > col3.txt
-
-# paste will use tab "\t" as delimiter by default. Change it to space ' '
-paste -d' ' col1.txt col2.txt col3.txt > cols.txt
-
-# Iterating over a list of named files
-MyFilenameList=`cat cols.txt | tail -n +${PBS_ARRAYID} | head -1`
-
-# Split the parameters in MyFilenameList into array using space ' ' as delimiter. "read -a MyFilenameArray" is to read the content from MyFilenameList into an array "-a"
-IFS=' ' read -a MyFilenameArray <<< "${MyFilenameList}"
-
-# echo ${MyFilenameArray[0]} > ${PBS_ARRAYID}_Array0.txt
-# echo ${MyFilenameArray[1]} > ${PBS_ARRAYID}_Array1.txt
-# echo ${MyFilenameArray[2]} > ${PBS_ARRAYID}_Array2.txt
+# prepare reference genome for STAR aligner
+rsem-prepare-reference --gtf ${SUBJECTGFF1} --star --star-path ${STAR_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
+# rsem-prepare-reference --gtf ${SUBJECTGFF501} --star --star-path ${STAR_DIR} ${SUBJECTFA}  ${SUBJECTNAME}
 
 # calculate RNA-Seq expression by RSEM
-rsem-calculate-expression --bowtie-path /N/soft/mason/bowtie/0.12.8 --paired-end -p 8 --output-genome-bam --calc-ci --time --seed-length 80 ${MyFilenameArray[0]} ${MyFilenameArray[1]} ../05_rsem-prepare-reference/MYSEQ ${MyFilenameArray[2]}
+cd  ${WORK_DIR}/run/rsem
+for k in ${SAMPLE}
+do
+# run rsem with bowtie aligner
+rsem-calculate-expression --bowtie-path ${BOWTIE_DIR} --paired-end --num-threads ${THREADS} \
+ --output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
+ ${WORK_DIR}/run/reads/${k}_1.fq ${WORK_DIR}/run/reads/${k}_2.fq \
+ ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_byBowtie_${k}-on-${i} &
 
-# prepare reference genome for RSEM
-rsem-prepare-reference --gtf MYSEQ.gtf --bowtie-path /N/soft/mason/bowtie/0.12.8 MYSEQ.fa  MYSEQ
+# run rsem with STAR aligner
+# rsem-calculate-expression --star --star-path ${STAR_DIR} --paired-end --num-threads ${THREADS} \
+# --star-output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
+# ${WORK_DIR}/run/reads/${k}_1.fq ${WORK_DIR}/run/reads/${k}_2.fq \
+# ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_bySTAR_${k}-on-${i} &
+
+done
+
+# wait for all jobs of one TARGET finished
+wait
+
+done
+
 
 ##---------------------
 ## EBSeq
-# The RSEM that come with Mason does NOT contain EBSeq installed. Need to UNLOAD module RSEM, if loaded earlier, otherwise the call for EBSeq will fail to fi\
-nd it.
+# The RSEM that come with Mason does NOT contain EBSeq installed. Need to UNLOAD module RSEM, if loaded earlier, otherwise the call for EBSeq will fail to find it.
 
 module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
 module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
 module add R/2.15.2 # R is required for EBSeq installation
-export PATH=~/src/rsem-1.2.9:~/src/rsem-1.2.9/EBSeq:$PATH #add my version of RSEM and EBSeq to $PATH
+export PATH=~/src/RSEM:~/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
 
 cd $PBS_O_WORKDIR
 mkdir 07_rsem-ebseq
