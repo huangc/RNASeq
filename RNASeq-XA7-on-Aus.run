@@ -97,10 +97,13 @@ sed -i 's/trimmedreads readsasfasta fastqca/trimmedreads fastqca/;' Makefile_GPR
 # submit makefile jobs
 SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
 NUMPROC=4
-
 for i in ${SAMPLE}
 do
-sed 's/SAMPLE            = RNA_SAMPLE/SAMPLE            = IRBB7/;' Makefile_GPR-orig > Makefile_GPR-${i}
+cd ${WORK_DIR}/run/reads
+mkdir ${i}
+cd ${i}
+\cp ../Makefile_GPR-orig Makefile_GPR-${i}
+sed 's/SAMPLE            = RNA_SAMPLE/SAMPLE            = IRBB7/;' Makefile_GPR-${i}
 sed -i "s/SYNONYM           = RNA_SYNONYM/SYNONYM           = $i/;" Makefile_GPR-${i}
 sed -i "s/ACCESSIONS        = RNA_ACCESSIONS/ACCESSIONS        = $i/;" Makefile_GPR-${i}
 make -j $NUMPROC -I../ -I../../ -f Makefile_GPR-${i} >& err_${i}
@@ -147,16 +150,16 @@ cd  ${WORK_DIR}/run/rsem
 for k in ${SAMPLE}
 do
 # run rsem with bowtie aligner
-rsem-calculate-expression --bowtie-path ${BOWTIE_DIR} --paired-end --num-threads ${THREADS} \
- --output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
- ${WORK_DIR}/run/reads/${k}_1.fq ${WORK_DIR}/run/reads/${k}_2.fq \
- ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_byBowtie_${k}-on-${i} &
+# rsem-calculate-expression --bowtie-path ${BOWTIE_DIR} --paired-end --num-threads ${THREADS} \
+# --output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
+# ${WORK_DIR}/run/reads/${k}/${k}_1.fq ${WORK_DIR}/run/reads/${k}/${k}_2.fq \
+# ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_byBowtie_${k}-on-${i} &
 
 # run rsem with STAR aligner
-# rsem-calculate-expression --star --star-path ${STAR_DIR} --paired-end --num-threads ${THREADS} \
-# --star-output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
-# ${WORK_DIR}/run/reads/${k}_1.fq ${WORK_DIR}/run/reads/${k}_2.fq \
-# ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_bySTAR_${k}-on-${i} &
+rsem-calculate-expression --star --star-path ${STAR_DIR} --paired-end --num-threads ${THREADS} \
+ --star-output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
+ ${WORK_DIR}/run/reads/${k}/${k}_1.fq ${WORK_DIR}/run/reads/${k}/${k}_2.fq \
+ ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-on-${i} &> err_rsem_bySTAR_${k}-on-${i} &
 
 done
 
