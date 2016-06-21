@@ -156,7 +156,7 @@ rsem-calculate-expression --bowtie-path ${BOWTIE_DIR} --paired-end --num-threads
  ${WORK_DIR}/run/reads/${k}/${k}_1.fq ${WORK_DIR}/run/reads/${k}/${k}_2.fq \
  ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-bowtie-${i} &> err_rsem_${k}-bowtie-${i} &
 
-# run rsem with STAR aligner
+# BUGGY, VERY SLOW!! run rsem with STAR aligner
 # rsem-calculate-expression --star --star-path ${STAR_DIR} --paired-end --num-threads ${THREADS} \
 # --star-output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
 # ${WORK_DIR}/run/reads/${k}/${k}_1.fq ${WORK_DIR}/run/reads/${k}/${k}_2.fq \
@@ -172,90 +172,83 @@ done
 
 ##---------------------
 ## EBSeq
-# The RSEM that come with Mason does NOT contain EBSeq installed. Need to UNLOAD module RSEM, if loaded earlier, otherwise the call for EBSeq will fail to find it.
-
+# The RSEM that come with Mason does NOT contain EBSeq installed. Need to UNLOAD module RSEM, if loaded earlier, \
+# otherwise the call for EBSeq will fail to find it.
 module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
 module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
 module add R/2.15.2 # R is required for EBSeq installation
 export PATH=~/src/RSEM:~/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
-
 cd $PBS_O_WORKDIR
-mkdir 07_rsem-ebseq
-cd 07_rsem-ebseq
 
+cd ${WORK_DIR}/run
+mkdir -p ebseq
+cd ebseq
+\cp -s ${WORK_DIR}/run/rsem/*.results .
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
 
-# Link the *.transcripts.fa file from rsem-prepare-reference to here
-cp -s ../05_rsem-prepare-reference/*.transcripts.fa .
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF1=${i}_1_1000.gtf
+SUBJECTGFF501=${i}_501_1000.gtf
+SUBJECTRNA=${i}.transcripts.fa
 
-# Link the *.genes.results and *.isoforms.results files from rsem-calculate-expression to here
-cp -s ../06_rsem-calculate-expression/*.results .
+GENE_GROUP_A="A1_L11a-bowtie-${TARGET}.genes.results A2_L11b-bowtie-${TARGET}.genes.results"
+GENE_GROUP_B="B1_L12-bowtie-${TARGET}.genes.results B2_L22-bowtie-${TARGET}.genes.results"
+GENE_GROUP_C="C1_L13-bowtie-${TARGET}.genes.results C2_L23-bowtie-${TARGET}.genes.results"
 
+ISOFORM_GROUP_A="A1_L11a-bowtie-${TARGET}.isoforms.results A2_L11b-bowtie-${TARGET}.isoforms.results"
+ISOFORM_GROUP_B="B1_L12-bowtie-${TARGET}.isoforms.results B2_L22-bowtie-${TARGET}.isoforms.results"
+ISOFORM_GROUP_C="C1_L13-bowtie-${TARGET}.isoforms.results C2_L23-bowtie-${TARGET}.isoforms.results"
 
-### 07_01_rsem-generate-ngvector
-ls -1 *.transcripts.fa | xargs -I {} rsem-generate-ngvector {} EBSeq.isoform
+DEGROUPS="2,2"
+FDR=0.05
+FDRNAME=DE005
 
+# rsem-generate-ngvector
+rsem-generate-ngvector ${WORK_DIR}/targets/${SUBJECTRNA} EBSeq.isoform-${i}
 
-### 07_02_rsem-generate-data-matrix
+# rsem-generate-data-matrix
 # data_matrix_file is a m by n matrix. m is the number of genes/transcripts and n is the number of total samples.
 
-## run gene level of rsem-generate-data-matrix.
-genes_results_list=`ls *.genes.results`
-
-# Split the parameters in genes_results_list into array. Note that array index starts at "0".
-read -a genes_results_array <<< $genes_results_list
-rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[0]} ${genes_results_array[1]} > BvsA.genes.counts.matrix
-rsem-generate-data-matrix ${genes_results_array[4]} ${genes_results_array[5]} ${genes_results_array[0]} ${genes_results_array[1]} > CvsA.genes.counts.matrix
-rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[4]} ${genes_results_array[5]} > BvsC.genes.counts.matrix
-rsem-generate-data-matrix ${genes_results_array[2]} ${genes_results_array[3]} ${genes_results_array[4]} ${genes_results_array[5]} ${genes_results_array[0]} $\
-{genes_results_array[1]} > BvsCvsA.genes.counts.matrix
+# run gene level of rsem-generate-data-matrix.
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_A} > BvsA-on-${TARGET}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_C} ${GENE_GROUP_A} > CvsA-on-${TARGET}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_C} > BvsC-on-${TARGET}.genes.counts.matrix
 
 ## run isoform level of rsem-generate-data-matrix.
-isoforms_results_list=`ls *.isoforms.results`
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_A} > BvsA-on-${TARGET}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_C} ${ISOFORM_GROUP_A} > CvsA-on-${TARGET}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_C} > BvsC-on-${TARGET}.isoforms.counts.matrix
 
-
-# Split the parameters in isoforms_results_list into array. Note that array index starts at "0".
-read -a isoforms_results_array <<< $isoforms_results_list
-rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[0]} ${isoforms_results_array[1]} > BvsA.isoforms\
-.counts.matrix
-rsem-generate-data-matrix ${isoforms_results_array[4]} ${isoforms_results_array[5]} ${isoforms_results_array[0]} ${isoforms_results_array[1]} > CvsA.isoforms\
-.counts.matrix
-rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[4]} ${isoforms_results_array[5]} > BvsC.isoforms\
-.counts.matrix
-rsem-generate-data-matrix ${isoforms_results_array[2]} ${isoforms_results_array[3]} ${isoforms_results_array[4]} ${isoforms_results_array[5]} ${isoforms_resu\
-lts_array[0]} ${isoforms_results_array[1]} > BvsCvsA.isoforms.counts.matrix
-
-
-### 07_03_rsem-run-ebseq
-# conditions is comma-separated list of values representing the number of replicates for each condition. For example, "3,3" means the data set contains 2 con\
-ditions and each condition has 3 replicates. "2,3,3" means the data set contains 3 conditions, with 2, 3, and 3 replicates for each condition respectively.
+## rsem-run-ebseq
+# conditions is comma-separated list of values representing the number of replicates for each condition. 
+# For example, "3,3" means the data set contains 2 conditions and each condition has 3 replicates. 
+# "2,3,3" means the data set contains 3 conditions, with 2, 3, and 3 replicates for each condition respectively.
 
 ## run gene level of DE analysis by EBSeq.
-rsem-run-ebseq BvsA.genes.counts.matrix 2,2 BvsA.genes.counts.matrix.results
-rsem-run-ebseq CvsA.genes.counts.matrix 2,2 CvsA.genes.counts.matrix.results
-rsem-run-ebseq BvsC.genes.counts.matrix 2,2 BvsC.genes.counts.matrix.results
-rsem-run-ebseq BvsCvsA.genes.counts.matrix 2,2,2 BvsCvsA.genes.counts.matrix.results
+rsem-run-ebseq BvsA-on-${TARGET}.genes.counts.matrix ${DEGROUPS} BvsA-on-${TARGET}.genes.counts.matrix.results
+rsem-run-ebseq CvsA-on-${TARGET}.genes.counts.matrix ${DEGROUPS} CvsA-on-${TARGET}.genes.counts.matrix.results
+rsem-run-ebseq BvsC-on-${TARGET}.genes.counts.matrix ${DEGROUPS} BvsC-on-${TARGET}.genes.counts.matrix.results
 
 # run isoform level of DE analysis by EBSeq.
-rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsA.isoforms.counts.matrix 2,2 BvsA.isoforms.counts.matrix.results
-rsem-run-ebseq --ngvector EBSeq.isoform.ngvec CvsA.isoforms.counts.matrix 2,2 CvsA.isoforms.counts.matrix.results
-rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsC.isoforms.counts.matrix 2,2 BvsC.isoforms.counts.matrix.results
-rsem-run-ebseq --ngvector EBSeq.isoform.ngvec BvsCvsA.isoforms.counts.matrix 2,2,2 BvsCvsA.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsA-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} BvsA-on-${TARGET}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec CvsA-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} CvsA-on-${TARGET}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsC-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} BvsC-on-${TARGET}.isoforms.counts.matrix.results
 
-
-### 07_04_rsem-control-fdr
+## rsem-control-fdr
 ## Find DE genes by FDR 0.05.
-rsem-control-fdr BvsA.genes.counts.matrix.results 0.05 BvsA.genes.DE005.txt
-rsem-control-fdr CvsA.genes.counts.matrix.results 0.05 CvsA.genes.DE005.txt
-rsem-control-fdr BvsC.genes.counts.matrix.results 0.05 BvsC.genes.DE005.txt
-rsem-control-fdr BvsCvsA.genes.counts.matrix.results 0.05 BvsCvsA.genes.DE005.txt
+rsem-control-fdr BvsA-on-${TARGET}.genes.counts.matrix.results ${FDR} BvsA-on-${TARGET}.genes.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${TARGET}.genes.counts.matrix.results ${FDR} CvsA-on-${TARGET}.genes.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${TARGET}.genes.counts.matrix.results ${FDR} BvsC-on-${TARGET}.genes.${FDRNAME}.txt
 
 ## Find DE isoforms by FDR 0.05.
-rsem-control-fdr BvsA.isoforms.counts.matrix.results 0.05 BvsA.isoforms.DE005.txt
-rsem-control-fdr CvsA.isoforms.counts.matrix.results 0.05 CvsA.isoforms.DE005.txt
-rsem-control-fdr BvsC.isoforms.counts.matrix.results 0.05 BvsC.isoforms.DE005.txt
-rsem-control-fdr BvsCvsA.isoforms.counts.matrix.results 0.05 BvsCvsA.isoforms.DE005.txt
+rsem-control-fdr BvsA-on-${TARGET}.isoforms.counts.matrix.results ${FDR} BvsA-on-${TARGET}.isoforms.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${TARGET}.isoforms.counts.matrix.results ${FDR} CvsA-on-${TARGET}.isoforms.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${TARGET}.isoforms.counts.matrix.results ${FDR} BvsC-on-${TARGET}.isoforms.${FDRNAME}.txt
 
-
-
-
+done
 
