@@ -186,6 +186,9 @@ cd ebseq
 \cp -s ${WORK_DIR}/run/rsem/*.results .
 SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
 TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+DEGROUPS="2,2"
+FDR=0.05
+FDRNAME=DE005
 
 for i in ${TARGET}
 do
@@ -196,17 +199,13 @@ SUBJECTGFF1=${i}_1_1000.gtf
 SUBJECTGFF501=${i}_501_1000.gtf
 SUBJECTRNA=${i}.transcripts.fa
 
-GENE_GROUP_A="A1_L11a-bowtie-${TARGET}.genes.results A2_L11b-bowtie-${TARGET}.genes.results"
-GENE_GROUP_B="B1_L12-bowtie-${TARGET}.genes.results B2_L22-bowtie-${TARGET}.genes.results"
-GENE_GROUP_C="C1_L13-bowtie-${TARGET}.genes.results C2_L23-bowtie-${TARGET}.genes.results"
+GENE_GROUP_A="A1_L11a-bowtie-${i}.genes.results A2_L11b-bowtie-${i}.genes.results"
+GENE_GROUP_B="B1_L12-bowtie-${i}.genes.results B2_L22-bowtie-${i}.genes.results"
+GENE_GROUP_C="C1_L13-bowtie-${i}.genes.results C2_L23-bowtie-${i}.genes.results"
 
-ISOFORM_GROUP_A="A1_L11a-bowtie-${TARGET}.isoforms.results A2_L11b-bowtie-${TARGET}.isoforms.results"
-ISOFORM_GROUP_B="B1_L12-bowtie-${TARGET}.isoforms.results B2_L22-bowtie-${TARGET}.isoforms.results"
-ISOFORM_GROUP_C="C1_L13-bowtie-${TARGET}.isoforms.results C2_L23-bowtie-${TARGET}.isoforms.results"
-
-DEGROUPS="2,2"
-FDR=0.05
-FDRNAME=DE005
+ISOFORM_GROUP_A="A1_L11a-bowtie-${i}.isoforms.results A2_L11b-bowtie-${i}.isoforms.results"
+ISOFORM_GROUP_B="B1_L12-bowtie-${i}.isoforms.results B2_L22-bowtie-${i}.isoforms.results"
+ISOFORM_GROUP_C="C1_L13-bowtie-${i}.isoforms.results C2_L23-bowtie-${i}.isoforms.results"
 
 # rsem-generate-ngvector
 rsem-generate-ngvector ${WORK_DIR}/targets/${SUBJECTRNA} EBSeq.isoform-${i}
@@ -215,14 +214,14 @@ rsem-generate-ngvector ${WORK_DIR}/targets/${SUBJECTRNA} EBSeq.isoform-${i}
 # data_matrix_file is a m by n matrix. m is the number of genes/transcripts and n is the number of total samples.
 
 # run gene level of rsem-generate-data-matrix.
-rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_A} > BvsA-on-${TARGET}.genes.counts.matrix
-rsem-generate-data-matrix ${GENE_GROUP_C} ${GENE_GROUP_A} > CvsA-on-${TARGET}.genes.counts.matrix
-rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_C} > BvsC-on-${TARGET}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_A} > BvsA-on-${i}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_C} ${GENE_GROUP_A} > CvsA-on-${i}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_C} > BvsC-on-${i}.genes.counts.matrix
 
 ## run isoform level of rsem-generate-data-matrix.
-rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_A} > BvsA-on-${TARGET}.isoforms.counts.matrix
-rsem-generate-data-matrix ${ISOFORM_GROUP_C} ${ISOFORM_GROUP_A} > CvsA-on-${TARGET}.isoforms.counts.matrix
-rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_C} > BvsC-on-${TARGET}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_A} > BvsA-on-${i}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_C} ${ISOFORM_GROUP_A} > CvsA-on-${i}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_C} > BvsC-on-${i}.isoforms.counts.matrix
 
 ## rsem-run-ebseq
 # conditions is comma-separated list of values representing the number of replicates for each condition. 
@@ -230,25 +229,25 @@ rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_C} > BvsC-on-${TARG
 # "2,3,3" means the data set contains 3 conditions, with 2, 3, and 3 replicates for each condition respectively.
 
 ## run gene level of DE analysis by EBSeq.
-rsem-run-ebseq BvsA-on-${TARGET}.genes.counts.matrix ${DEGROUPS} BvsA-on-${TARGET}.genes.counts.matrix.results
-rsem-run-ebseq CvsA-on-${TARGET}.genes.counts.matrix ${DEGROUPS} CvsA-on-${TARGET}.genes.counts.matrix.results
-rsem-run-ebseq BvsC-on-${TARGET}.genes.counts.matrix ${DEGROUPS} BvsC-on-${TARGET}.genes.counts.matrix.results
+rsem-run-ebseq BvsA-on-${i}.genes.counts.matrix ${DEGROUPS} BvsA-on-${i}.genes.counts.matrix.results
+rsem-run-ebseq CvsA-on-${i}.genes.counts.matrix ${DEGROUPS} CvsA-on-${i}.genes.counts.matrix.results
+rsem-run-ebseq BvsC-on-${i}.genes.counts.matrix ${DEGROUPS} BvsC-on-${i}.genes.counts.matrix.results
 
 # run isoform level of DE analysis by EBSeq.
-rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsA-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} BvsA-on-${TARGET}.isoforms.counts.matrix.results
-rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec CvsA-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} CvsA-on-${TARGET}.isoforms.counts.matrix.results
-rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsC-on-${TARGET}.isoforms.counts.matrix ${DEGROUPS} BvsC-on-${TARGET}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsA-on-${i}.isoforms.counts.matrix ${DEGROUPS} BvsA-on-${i}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec CvsA-on-${i}.isoforms.counts.matrix ${DEGROUPS} CvsA-on-${i}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsC-on-${i}.isoforms.counts.matrix ${DEGROUPS} BvsC-on-${i}.isoforms.counts.matrix.results
 
 ## rsem-control-fdr
 ## Find DE genes by FDR 0.05.
-rsem-control-fdr BvsA-on-${TARGET}.genes.counts.matrix.results ${FDR} BvsA-on-${TARGET}.genes.${FDRNAME}.txt
-rsem-control-fdr CvsA-on-${TARGET}.genes.counts.matrix.results ${FDR} CvsA-on-${TARGET}.genes.${FDRNAME}.txt
-rsem-control-fdr BvsC-on-${TARGET}.genes.counts.matrix.results ${FDR} BvsC-on-${TARGET}.genes.${FDRNAME}.txt
+rsem-control-fdr BvsA-on-${i}.genes.counts.matrix.results ${FDR} BvsA-on-${i}.genes.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${i}.genes.counts.matrix.results ${FDR} CvsA-on-${i}.genes.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${i}.genes.counts.matrix.results ${FDR} BvsC-on-${i}.genes.${FDRNAME}.txt
 
 ## Find DE isoforms by FDR 0.05.
-rsem-control-fdr BvsA-on-${TARGET}.isoforms.counts.matrix.results ${FDR} BvsA-on-${TARGET}.isoforms.${FDRNAME}.txt
-rsem-control-fdr CvsA-on-${TARGET}.isoforms.counts.matrix.results ${FDR} CvsA-on-${TARGET}.isoforms.${FDRNAME}.txt
-rsem-control-fdr BvsC-on-${TARGET}.isoforms.counts.matrix.results ${FDR} BvsC-on-${TARGET}.isoforms.${FDRNAME}.txt
+rsem-control-fdr BvsA-on-${i}.isoforms.counts.matrix.results ${FDR} BvsA-on-${i}.isoforms.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${i}.isoforms.counts.matrix.results ${FDR} CvsA-on-${i}.isoforms.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${i}.isoforms.counts.matrix.results ${FDR} BvsC-on-${i}.isoforms.${FDRNAME}.txt
 
 done
 
