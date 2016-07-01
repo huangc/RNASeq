@@ -21,11 +21,14 @@ source RNASeq.source
 cd ${WORK_DIR}/targets
 # copy the following fasta and embl files from either ${TRegGA_DIR}/targets or 
 # ${TRegGA_DIR}/assembly/rfguided/${SYNONYM}-on-${TARGET}/EVALUATION/${SYNONYM}-${TARGET}.fa and embl to here.
-TARGET="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7 \
-DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+# TARGET="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7 \
+# DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+
 
 ##-----------------------------------------
 ## Generate the annotation_by_sliding_window gff file using 1-kb sliding window method, with starting position at 1 and 501 separately.
+# Usage: python annotation_by_sliding_window.py myseq.fa winStart winSize stepSize myseq.gff
+cd ${WORK_DIR}/targets
 for i in ${TARGET}
 do
 SUBJECTNAME=${i}
@@ -38,6 +41,34 @@ SUBJECTGFF1=${i}_1_1000.gtf
 SUBJECTGFF501=${i}_501_1000.gtf
 
 done
+
+##---------------------------------------
+## For RNA-Seq on whole genome contigs/scaffolds
+# Which one should I use? Contigs or scaffolds?
+# In contigs, 92% contigs are under 1 kb, or 653,255 out of 709,220 contigs are under 1,000 bp long. 
+# 55,965 out of 709,220 contigs are over 1,000 bp. The longest contig =70,718.
+# With important regards to sequence lengh, scaffolds have better chance of finding DE gene and TALEN together than in the case of contigs. 
+# Use scaffold for making annotation. 
+# 
+# cp ${TRegGA_DIR}/assembly/denovo/${SYNONYM}/${SYNONYM}-soap.contig ${SYNONYM}-soap-contig.fasta
+# TARGET="foo_scaffolds"
+TARGET="IR24LR IRBB7LR"
+
+cd ${WORK_DIR}/targets
+for i in ${TARGET}
+do
+cp ${TRegGA_DIR}/assembly/denovo/${i}/${i}-GF/${i}-GF.gapfilled.final.fa ${i}.fa
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}_1_1000.gtf
+
+python ../bin/annotation_by_sliding_window_WGContigs.py ${i}.fa 1 1000 ${i}_1_1000.gtf
+# python ../bin/annotation_by_sliding_window_WGContigs.py ${i}.fa 501 1000 ${i}_501_1000.gtf
+
+done
+
+
 
 ##-------------------------------------------
 ## Prepare reads with TRegGA Makefile_GPR-orig
@@ -109,6 +140,10 @@ sed -i "s/ACCESSIONS        = RNA_ACCESSIONS/ACCESSIONS        = $i/;" Makefile_
 make -j $NUMPROC -I../ -I../../ -f Makefile_GPR-${i} >& err_${i}
 done
 
+
+
+
+
 ##-----------
 ## run RSEM for estimating gene and isoform expression levels
 cd ${WORK_DIR}/run
@@ -120,8 +155,8 @@ module add rsem/1.2.19
 SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
 # TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10\
 # OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7"
-# TARGET="OsaXA7 IRBB7-OsaXA7"
-TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10"
+# TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10"
+TARGET="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7"
 BOWTIE_DIR=/usr/local/src/NGS-DIR/BOWTIE/bowtie
 STAR_DIR=~/src/STAR/bin/Linux_x86_64
 THREADS=1
