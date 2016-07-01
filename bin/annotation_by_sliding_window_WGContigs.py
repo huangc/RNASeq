@@ -43,8 +43,6 @@ for index, record in enumerate(SeqIO.parse(infile, "fasta")):
     and they should be annotated as scaffoldN.gene1, scaffoldN.gene2, scaffoldN.gene3.
 
 """
-"""Pre-compute number of steps to emit"""
-"""Do the work"""
 
 def slidingWindow(infile, winStart, winSize, outfile):
     from Bio import SeqIO
