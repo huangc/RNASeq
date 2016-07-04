@@ -1,16 +1,18 @@
-# TRegGA runtime configuration
+# RNASeq runtime configuration
 # To be included in shell script
 # Specific to gnomic.soic.indiana.edu
 
 ## General
-EMAIL=youremail@indiana.edu
-# WORK_DIR=/projects/huangcy/MYGIT/RNASeq
-WORK_DIR=$(pwd)
+RNASeq_DIR=/projects/huangcy/MYGIT/RNASeq
 TRegGA_DIR=/projects/huangcy/MYGIT/TRegGA
+WORK_DIR=${RNASeq_DIR}
 RAWREAD_DIR=/projects/huangcy/DATA/IRBB7_RNASEQ_RAW
+SRCDIR=/usr/local/src/NGS-DIR
+BOWTIE_DIR=/usr/local/src/NGS-DIR/BOWTIE/bowtie
 
 ## Sub-directory for workflow
-# prereq_DIR=${WORK_DIR}/prereq
+# WORK_DIR=$(pwd)
+prereq_DIR=${WORK_DIR}/prereq
 doc_DIR=${WORK_DIR}/doc
 bin_DIR=${WORK_DIR}/bin
 src_DIR=${WORK_DIR}/src
@@ -20,58 +22,73 @@ reference_DIR=${WORK_DIR}/reference
 targets_DIR=${WORK_DIR}/targets
 scratch_DIR=${WORK_DIR}/scratch
 
-# REFSEQ is the fasta file for reference genome, retrieved by bin/xgetseq, and located in prereq/.
-REFSEQ=OsjCHR.fa
-# REFSEQ=OsjChr10.fa
-# REFSEQNAME is the file name for REFSEQ without file extension.
-REFSEQNAME=OsjCHR
-# REFSEQNAME=OsjChr10
-# REFGFF is the gene annotation gff3 file for REFSEQ, retrieved by bin/xgetseq, and located in prereq/.
-REFGFF=OsjCHR.gff3
-# MSUGFF is the gene annotation gff3 file similar to REFSEQ, but retrieved from MSU site.
-# The file format of MSUREF, but not the content, is different from REFSEQ, and is used by the ilocus finding program, locuspocus.
-MSUGFF=OsjCHR_msu.gff3
-
-# SAMPLE is a list of sample names. Each sample name should be only one word.
-# SAMPLE="ZHENGSHAN97test ZHENGSHAN97test2"
-# SAMPLENAME is the collected sample name for reporting purpose, such as YB for all samples of YB1..YB8
-# SAMPLENAME=VarYB
-# SAMPLENUM is the number of samples in this study
-# SAMPLENUM=26
-
-# Programs and executables variables for the shell environment
-# ------------------------------------------------------------------------------
-# Within the TRegGA root directory we have created a `bin` directory for storing
-# executables. This bin directory must be added to your `PATH` environmental
-# variable in your ~/.bash_profile  before running the TRegGA pipeline.
-# Corresponding source code distributions can be found in the `src` directory.
-
-SRCDIR=/usr/local/src/NGS-DIR
+## PATH for executables
 export PATH=$PATH:/usr/local/bin
 export PATH=$PATH:${SRCDIR}/BOWTIE/bowtie
 export PATH=$PATH:${SRCDIR}/BOWTIE2/bowtie2-2.2.5
 export PATH=$PATH:${SRCDIR}/BWA/bwa-0.7.12
 export PATH=$PATH:${SRCDIR}/SAMTOOLS/samtools
 
-# PAGIT
-# ------------------------------------------------------------------------------
-# The PAGIT package includes a script that must be placed in the user's .bashrc
-# file for PAGIT to work properly.
-# source /usr/local/src/NGS-DIR/PAGIT/PAGIT/sourceme.pagit
+## module loading for Mason
+# The RSEM that come with Mason does NOT contain EBSeq installed. You need to UNLOAD module RSEM if it was loaded earlier,
+# otherwise the call for EBSeq will fail to find it.
+module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
+module add rsem/1.2.19
+module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
+module add R/2.15.2 # R is required for EBSeq installation
+export PATH=~/src/RSEM:~/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
 
-##-----------------------------------------------------------
+## Global Variables
+# REFSEQ is the fasta file for reference genome, retrieved by bin/xgetseq, and located in prereq/.
+REFSEQ=OsjCHR.fa
+# REFSEQNAME is the file name for REFSEQ without file extension.
+REFSEQNAME=OsjCHR
+# REFGFF is the gene annotation gff3 file for REFSEQ, retrieved by bin/xgetseq, and located in prereq/.
+REFGFF=OsjCHR.gff3
+# SAMPLE is a list of RNA-Seq sample reads names. Each sample reads name should be only one word.
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+# TARGET is a list of target names to which the sample reads are aligned against for expression estimation. 
+# TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+# TARGET="OsaXA7 IRBB7-OsaXA7 DV86-OsaXA7 IRBB62-OsaXA7"
+# TARGET can be the whole genome scaffolds (WGscaffold)
+TARGET="IRBB7LR IR24LR"
+SUBJECTNAME=${TARGET}
+SUBJECTFA=${TARGET}.fa
+SUBJECTEMBL=${TARGET}.embl
+SUBJECTGFF=${TARGET}_1_1000.gtf
+SUBJECTRNA=${TARGET}.transcripts.fa
+# GENE_GROUP and ISOFORM_GROUP are for DE gene/isoform comparison by EBseq
+GENE_GROUP_A="A1_L11a-bowtie-${TARGET}.genes.results A2_L11b-bowtie-${TARGET}.genes.results"
+GENE_GROUP_B="B1_L12-bowtie-${TARGET}.genes.results B2_L22-bowtie-${TARGET}.genes.results"
+GENE_GROUP_C="C1_L13-bowtie-${TARGET}.genes.results C2_L23-bowtie-${TARGET}.genes.results"
+ISOFORM_GROUP_A="A1_L11a-bowtie-${TARGET}.isoforms.results A2_L11b-bowtie-${TARGET}.isoforms.results"
+ISOFORM_GROUP_B="B1_L12-bowtie-${TARGET}.isoforms.results B2_L22-bowtie-${TARGET}.isoforms.results"
+ISOFORM_GROUP_C="C1_L13-bowtie-${TARGET}.isoforms.results C2_L23-bowtie-${TARGET}.isoforms.results"
 
+##-----------------------------------------
+## denovo assembly by TRegGA
+EMAIL=youremail@indiana.edu
 WALLTIME=24
 VMEM=200
 PPN=2
 CHECKONLY=no
 NUMPROC=2
-SAMPLE="IRBB7 DV86 IRBB62"
+# SAMPLE="IRBB7 DV86 IRBB62"
 # CULTIVAR='\"XA7B\"'
 # SYNONYM="XA7B"
-TARGET=DJ123_scaffold10
-REFERENCE=DJ123_scaffold10
-FROM=
-TO=
+# TARGET=DJ123_scaffold10
+# REFERENCE=DJ123_scaffold10
+FROM=""
+TO=""
 
 ##-----------------------------------------
+## RSEM
+THREADS=2
+SEED_LENGTH=80 #Seed length used by the rsem read aligner.
+
+##-----------------------------------------
+## EBseq
+DEGROUPS="2,2" # for 2 groups in each DE comparison (such as group B vs. group A), with 2 samples in each group.
+FDR=0.05
+FDRNAME=DE005
+
