@@ -32,10 +32,10 @@ export PATH=$PATH:${SRCDIR}/SAMTOOLS/samtools
 ## module loading for Mason
 # The RSEM that come with Mason does NOT contain EBSeq installed. You need to UNLOAD module RSEM if it was loaded earlier,
 # otherwise the call for EBSeq will fail to find it.
-module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
-module add rsem/1.2.19
-module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
-module add R/2.15.2 # R is required for EBSeq installation
+# module unload rsem/1.2.5 # Module rsem is default to version 1.2.5, which does NOT include EBSeq
+# module add rsem/1.2.19
+# module add bowtie/0.12.8 # bowtie is required for rsem installation, so it needs to be loaded before rsem
+# module add R/2.15.2 # R is required for EBSeq installation
 export PATH=~/src/RSEM:~/src/RSEM/EBSeq:$PATH #add RSEM and EBSeq to $PATH
 
 ## Global Variables
@@ -91,4 +91,9 @@ SEED_LENGTH=80 #Seed length used by the rsem read aligner.
 DEGROUPS="2,2" # for 2 groups in each DE comparison (such as group B vs. group A), with 2 samples in each group.
 FDR=0.05
 FDRNAME=DE005
+
+##-----------------------------------------
+## tale binding sites
+runNAME=avrXA7_on_IRBB7LR_IR24LR_scaffolds
+
 
