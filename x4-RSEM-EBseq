@@ -1,0 +1,104 @@
+## RSEM and EBseq for RNA-Seq estimation of gene expression and finding of defferentialy expressed genes
+
+##-----------------------------------------
+## run RSEM for estimating gene and isoform expression levels
+cd ${WORK_DIR}/run
+mkdir -p rsem
+cd rsem
+
+#
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}_1_1000.gtf
+
+cd ${TARGET_DIR}
+# prepare reference genome for Bowtie aligner
+rsem-prepare-reference --gtf ${TARGET_DIR}/${SUBJECTGFF} --bowtie --bowtie-path ${BOWTIE_DIR} ${TARGET_DIR}/${SUBJECTFA}  ${SUBJECTNAME}
+
+# calculate RNA-Seq expression by RSEM
+cd  ${WORK_DIR}/run/rsem
+for k in ${SAMPLE}
+do
+# run rsem with bowtie aligner
+rsem-calculate-expression --bowtie-path ${BOWTIE_DIR} --paired-end --num-threads ${THREADS} \
+ --output-genome-bam --calc-ci --time --seed-length ${SEED_LENGTH} \
+ ${WORK_DIR}/run/reads/${k}/${k}_1.fq ${WORK_DIR}/run/reads/${k}/${k}_2.fq \
+ ${WORK_DIR}/targets/${SUBJECTNAME} ${k}-bowtie-${i} &> err_rsem_${k}-bowtie-${i} &
+
+done
+
+# wait for all jobs of one TARGET finished
+wait
+
+done
+
+
+##---------------------
+## EBSeq
+cd ${WORK_DIR}/run
+mkdir -p ebseq
+cd ebseq
+\cp -s ${WORK_DIR}/run/rsem/*.results .
+
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}_1_1000.gtf
+SUBJECTRNA=${i}.transcripts.fa
+
+GENE_GROUP_A="A1_L11a-bowtie-${i}.genes.results A2_L11b-bowtie-${i}.genes.results"
+GENE_GROUP_B="B1_L12-bowtie-${i}.genes.results B2_L22-bowtie-${i}.genes.results"
+GENE_GROUP_C="C1_L13-bowtie-${i}.genes.results C2_L23-bowtie-${i}.genes.results"
+ISOFORM_GROUP_A="A1_L11a-bowtie-${i}.isoforms.results A2_L11b-bowtie-${i}.isoforms.results"
+ISOFORM_GROUP_B="B1_L12-bowtie-${i}.isoforms.results B2_L22-bowtie-${i}.isoforms.results"
+ISOFORM_GROUP_C="C1_L13-bowtie-${i}.isoforms.results C2_L23-bowtie-${i}.isoforms.results"
+
+# rsem-generate-ngvector
+rsem-generate-ngvector ${WORK_DIR}/targets/${SUBJECTRNA} EBSeq.isoform-${i}
+
+# rsem-generate-data-matrix
+# data_matrix_file is a m by n matrix. m is the number of genes/transcripts and n is the number of total samples.
+
+# run gene level of rsem-generate-data-matrix.
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_A} > BvsA-on-${i}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_C} ${GENE_GROUP_A} > CvsA-on-${i}.genes.counts.matrix
+rsem-generate-data-matrix ${GENE_GROUP_B} ${GENE_GROUP_C} > BvsC-on-${i}.genes.counts.matrix
+
+## run isoform level of rsem-generate-data-matrix.
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_A} > BvsA-on-${i}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_C} ${ISOFORM_GROUP_A} > CvsA-on-${i}.isoforms.counts.matrix
+rsem-generate-data-matrix ${ISOFORM_GROUP_B} ${ISOFORM_GROUP_C} > BvsC-on-${i}.isoforms.counts.matrix
+
+## rsem-run-ebseq
+# conditions is comma-separated list of values representing the number of replicates for each condition.
+# For example, "3,3" means the data set contains 2 conditions and each condition has 3 replicates.
+# "2,3,3" means the data set contains 3 conditions, with 2, 3, and 3 replicates for each condition respectively.
+
+## run gene level of DE analysis by EBSeq.
+rsem-run-ebseq BvsA-on-${i}.genes.counts.matrix ${DEGROUPS} BvsA-on-${i}.genes.counts.matrix.results
+rsem-run-ebseq CvsA-on-${i}.genes.counts.matrix ${DEGROUPS} CvsA-on-${i}.genes.counts.matrix.results
+rsem-run-ebseq BvsC-on-${i}.genes.counts.matrix ${DEGROUPS} BvsC-on-${i}.genes.counts.matrix.results
+
+# run isoform level of DE analysis by EBSeq.
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsA-on-${i}.isoforms.counts.matrix ${DEGROUPS} BvsA-on-${i}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec CvsA-on-${i}.isoforms.counts.matrix ${DEGROUPS} CvsA-on-${i}.isoforms.counts.matrix.results
+rsem-run-ebseq --ngvector EBSeq.isoform-${i}.ngvec BvsC-on-${i}.isoforms.counts.matrix ${DEGROUPS} BvsC-on-${i}.isoforms.counts.matrix.results
+
+## rsem-control-fdr
+## Find DE genes by FDR 0.05.
+rsem-control-fdr BvsA-on-${i}.genes.counts.matrix.results ${FDR} BvsA-on-${i}.genes.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${i}.genes.counts.matrix.results ${FDR} CvsA-on-${i}.genes.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${i}.genes.counts.matrix.results ${FDR} BvsC-on-${i}.genes.${FDRNAME}.txt
+
+## Find DE isoforms by FDR 0.05.
+rsem-control-fdr BvsA-on-${i}.isoforms.counts.matrix.results ${FDR} BvsA-on-${i}.isoforms.${FDRNAME}.txt
+rsem-control-fdr CvsA-on-${i}.isoforms.counts.matrix.results ${FDR} CvsA-on-${i}.isoforms.${FDRNAME}.txt
+rsem-control-fdr BvsC-on-${i}.isoforms.counts.matrix.results ${FDR} BvsC-on-${i}.isoforms.${FDRNAME}.txt
+
+done
+
