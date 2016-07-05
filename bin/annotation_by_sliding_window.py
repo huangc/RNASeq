@@ -11,9 +11,7 @@ Usage: python annotation_by_sliding_window.py myseq.fa 1 1000 1000 myseq.gff
 1. sequence file, single entry fasta sequence.
 2. start position (winStart) for slidingWindow process,
 3. window size (winSize) of bases for splitting,
-4. step size (stepSize) for stepping through the sliding windows (default to be the same as the winSize so no overlapping in the annotation.
-    For RNASeq DE gene analysis, there should be no overlapping in the annotation to avoid complication in interpreting the mapped read counts),
-5. gff output file name
+4. gff output file name
 
 The GFF (General Feature Format) format consists of one line per feature, each containing 9 columns of data, plus optional track definition lines.
 Fields must be tab-separated. Also, all but the final field in each feature line must contain a value; "empty" columns should be denoted with a '.'
@@ -36,37 +34,65 @@ p53_P5L2_sequence AUGUSTUS exon 1 1000 1 + 0 "transcript_id ""g1.t1""; gene_id "
 p53_P5L2_sequence AUGUSTUS exon 1001 2000 1 + 0 "transcript_id ""g2.t1""; gene_id ""g2"";"
 p53_P5L2_sequence AUGUSTUS exon 2001 3000 1 + 0 "transcript_id ""g3.t1""; gene_id ""g3"";"
 
+for index, record in enumerate(SeqIO.parse(infile, "fasta")):
+    print(index, record.id, record.name, record.description, record.annotations, record.features, record.dbxrefs, record.seq)
+    print(record.format("fasta"))
+    Note that winStart is the "1"-based base position, so should be "minus 1" to reconcile with the "0"-based counting in Python.
+    Note that for seqLen/winSize, 2000/1000=2, 2001/1000=2, 1999/1000=1, and the stepNum should be 2, 3, 2, respectively.
+    Note that if scaffoldN's seqLen=2010, winStart=1,winSize=1000, then stepNum=3, and the annotation steps are (1,1000), (1001,2000), (2001,2010).
+    and they should be annotated as scaffoldN.gene1, scaffoldN.gene2, scaffoldN.gene3.
+
 """
+"""Pre-compute number of steps to emit"""
+"""Do the work"""
 
-def slidingWindow(infile, winStart, winSize, stepSize, outfile):
+def slidingWindow(infile, winStart, winSize, outfile):
     from Bio import SeqIO
-    SeqRecord = SeqIO.read(infile, "fasta")
-    seqLen = len(SeqRecord.seq)
-    # Pre-compute number of steps to emit
-    stepNum = (seqLen - winStart - winSize) / stepSize
-    winRemainder = seqLen % winSize
-    if winRemainder > 0:
-        stepNum = stepNum + 1
-
-    # Do the work
-    output_file = open(outfile,"a")
-    SEQNAME = SeqRecord.id
-    SOURCE = "slidingWindowBy" + str(winSize) + "StepBy" + str(stepSize) 
-    FEATURE = "exon"
-    SCORE = 1
-    STRAND = "+"
-    FRAME = 0
-    GENE_COUNT = 0
-    for i in range(winStart, (winStart + stepNum * stepSize), stepSize):
-        GENE_COUNT = GENE_COUNT + 1
-        START = i
-        END = i + winSize -1
-        GENE_ID = '"' + "gene" + str(GENE_COUNT) + '"' + ";"
-        TRANSCRIPT_ID = '"' + "gene" + str(GENE_COUNT) + ".t1" + '"' + "; "
-        ATTRIBUTE = 'transcript_id ' + TRANSCRIPT_ID + 'gene_id ' + GENE_ID
-        seq_gtf = SEQNAME+"\t"+SOURCE+"\t"+FEATURE+"\t"+str(START)+"\t"+str(END)+"\t"+str(SCORE)+"\t"+STRAND+"\t"+str(FRAME)+"\t"+ATTRIBUTE+"\n"
-        output_file.write(seq_gtf)
-    output_file.close()
+    for index, record in enumerate(SeqIO.parse(infile, "fasta")):
+        seqLen = len(record.seq)
+        stepNum = (seqLen - (winStart - 1)) / winSize
+        winRemainder = seqLen % winSize
+        output_file = open(outfile,"a")
+        SEQNAME = record.id
+        SOURCE = "slidingWindowBy" + str(winSize)
+        FEATURE = "exon"
+        SCORE = 1
+        STRAND = "+"
+        FRAME = 0
+        GENE_COUNT = 0
+        if (winRemainder == 0):
+            for i in range(stepNum):
+                GENE_COUNT = GENE_COUNT + 1
+                START = winStart + winSize * i
+                END = (winStart -1) + winSize * (i + 1)
+                GENE_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + '"' + ";"
+                TRANSCRIPT_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + ".t1" + '"' + "; "
+                ATTRIBUTE = 'transcript_id ' + TRANSCRIPT_ID + 'gene_id ' + GENE_ID
+                seq_gtf = SEQNAME+"\t"+SOURCE+"\t"+FEATURE+"\t"+str(START)+"\t"+str(END)+"\t"+str(SCORE)+"\t"+STRAND+"\t"+str(FRAME)+"\t"+ATTRIBUTE+"\n"
+                output_file.write(seq_gtf)
+        else:
+            for i in range(stepNum + 1):
+                if (i < stepNum):
+                    winRemainder = winSize
+                    GENE_COUNT = GENE_COUNT + 1
+                    START = winStart + winSize * i
+                    END = (winStart -1) + winSize * i + winRemainder
+                    GENE_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + '"' + ";"
+                    TRANSCRIPT_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + ".t1" + '"' + "; "
+                    ATTRIBUTE = 'transcript_id ' + TRANSCRIPT_ID + 'gene_id ' + GENE_ID
+                    seq_gtf = SEQNAME+"\t"+SOURCE+"\t"+FEATURE+"\t"+str(START)+"\t"+str(END)+"\t"+str(SCORE)+"\t"+STRAND+"\t"+str(FRAME)+"\t"+ATTRIBUTE+"\n"
+                    output_file.write(seq_gtf)
+                else:
+                    winRemainder = seqLen % winSize
+                    GENE_COUNT = GENE_COUNT + 1
+                    START = winStart + winSize * i
+                    END = (winStart - 1) + winSize * i + winRemainder
+                    GENE_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + '"' + ";"
+                    TRANSCRIPT_ID = '"' + str(record.id) + ".gene" + str(GENE_COUNT) + ".t1" + '"' + "; "
+                    ATTRIBUTE = 'transcript_id ' + TRANSCRIPT_ID + 'gene_id ' + GENE_ID
+                    seq_gtf = SEQNAME+"\t"+SOURCE+"\t"+FEATURE+"\t"+str(START)+"\t"+str(END)+"\t"+str(SCORE)+"\t"+STRAND+"\t"+str(FRAME)+"\t"+ATTRIBUTE+"\n"
+                    output_file.write(seq_gtf)
+        output_file.close()
     
 import sys
 import argparse
@@ -74,10 +100,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("infile", type=str, help="input file with single fasta entry")
 parser.add_argument("winStart", type=int, default=1, help="sliding window start position")
 parser.add_argument("winSize", type=int, default=1000, help="sliding window size")
-parser.add_argument("stepSize", type=int, default=1000, help="sliding window step size") 
 parser.add_argument("outfile", type=str, help="output file")
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    slidingWindow(args.infile, args.winStart, args.winSize, args.stepSize, args.outfile)
+    slidingWindow(args.infile, args.winStart, args.winSize, args.outfile)
 
