@@ -1,0 +1,68 @@
+## This is to analyze the TALE binding sites on the TRegGA denovo-assembled scaffolds from IRBB7 and IR24 long reads (IRBB7LR and IR24LR)
+
+source ./0SOURCE
+
+cd ${TRegGA_DIR}/run
+mkdir -p tale_${runNAME}
+cd tale_${runNAME}
+
+for i in ${TARGET}
+do
+# copy denovo-assembled scaffolds here
+cp -s ${TRegGA_DIR}/assembly/denovo/${i}/${i}-GF/${i}-GF.gapfilled.final.fa ${i}.fa
+cp -s ${RNASeq_DIR}/targets/${i}_1_1000.gtf ${i}.gtf
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}.gtf
+
+done
+
+## TALE-NT2 analysis for TALE EBE
+## The AvrXa7 normal and frameshift versions are:
+#>AvrXa7: NI HG NI NI NS HD NN HD HD HD NS N* N* HD HD NS NS NN NN NI NG NN NI N* NS N*
+#>AvrXa7_frameshift: NI HG NI NI NS HD NN HD HD HD NS N* HD HD NS NS NN NN NI NG NN NI N* NS N*
+## PthXo3 normal and frameshift versions are:
+#>PthXo3: NI HG NI HG NI NI NI HD NN HD HD HD NG HD N* NI HD HD NN NS NI NN NN NG NN HD N* NS N*
+#>PthXo3_frameshift: NI HG NI HG NI NI NI HD NN HD HD HD NG HD NI HD HD NN NS NI NN NN NG NN HD N* NS N*
+
+AVRXA7="NI HG NI NI NS HD NN HD HD HD NS N* N* HD HD NS NS NN NN NI NG NN NI N* NS N*"
+AVRXA7_FS="NI HG NI NI NS HD NN HD HD HD NS N* HD HD NS NS NN NN NI NG NN NI N* NS N*"
+
+echo '"NI HG NI NI NS HD NN HD HD HD NS N* N* HD HD NS NS NN NN NI NG NN NI N* NS N*"' > taleAVRXA7
+echo '"NI HG NI NI NS HD NN HD HD HD NS N* HD HD NS NS NN NN NI NG NN NI N* NS N*"' > taleAVRXA7FS
+
+## TALE analysis
+#1. Make TALE-NT2 prediction of TALE binding sites on fasta files
+#    -x|--cutoffmult       multiple of best score at which potential sites will be
+#                          filtered; default is 3.0
+TSO_x=3
+
+TALE="taleAVRXA7 taleAVRXA7FS"
+queryseq=`\ls *.fa`
+echo "
+#!/usr/bin/bash" > talesf.sh
+for p in ${TALE}
+do
+for q in ${queryseq}
+do
+echo "
+talesf \
+        -x ${TSO_x} \
+        -o ${p}-on-${q} \
+        ${q} \
+        "`cat ${p}`"
+" >> talesf.sh
+done
+done
+
+sh talesf.sh
+
+# \ls taleAVRXA7-on*.txt | xargs -I {} cat {} > taleAVRXA7_all-${runNAME}.out
+# \ls taleAVRXA7FS-on*.txt | xargs -I {} cat {} > taleAVRXA7FS_all-${runNAME}.out
+
+for i in ${TARGET}
+do
+cat taleAVRXA7-on-${i}.fa.txt taleAVRXA7FS-on-${i}.fa.txt > taleAVRXA7all-on-${i}.fa.txt
+done
+
