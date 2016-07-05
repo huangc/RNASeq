@@ -43,18 +43,20 @@ DEexp="BvsA CvsA BvsC"
 for k in ${DEexp}
 do
 # Remove the " ", and separate the "scaffoldID.geneID" into scaffoldID geneID
-tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgene/g;' > ${k}-on-${i}.genes.${FDRNAME}.tab
+tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgene/g;' | sort -k1,2  > ${k}-on-${i}.genes.${FDRNAME}.tab
 \rm -f ${k}-on-${i}.taleDE.tab
 
 
-
-
+##-----------
 rowEB=`awk 'END { print NR }' ${k}-on-${i}.genes.${FDRNAME}.tab`
 for ((m=1; m<=$rowEB; m++))
 do
 head -$m ${k}-on-${i}.genes.${FDRNAME}.tab | tail -1 > recEB
 scaffoldID=`cut -f1 recEB`
 geneID=`cut -f2 recEB`
+cut -f2 recEB > rec_geneID
+sed -i 's/gene/gene\t/;' rec_geneID
+geneNUM=`cut -f2 rec_geneID`
 PPEE=`cut -f3 recEB`
 PPDE=`cut -f4 recEB`
 PostFC=`cut -f5 recEB`
@@ -75,17 +77,39 @@ taleStrand=`cut -f2 recEB_talerec`
 taleScore=`cut -f3 recEB_talerec`
 taleStart=`cut -f4 recEB_talerec`
 taleTarget=`cut -f5 recEB_talerec`
-
-echo "${scaffoldID} ${geneID} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
+echo "${scaffoldID} ${geneID} ${geneNUM} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
  ${talescaffoldID} ${taleStrand} ${taleScore} ${taleStart} ${taleTarget}" >> ${k}-on-${i}.taleDE.tab
 done
 fi
 done
+##-----------
 
 
-
-
-echo "scaffoldID geneID PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
+echo "scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
  cat - ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE.tab
 done
 done
+
+
+## Filter for taleDE gene that are within 100 bp of taleBS
+#Note: 
+# winStart=1
+# sinSize=1000
+# geneStart= winStart + winSize * i
+# geneEnd= (winStart - 1) + winSize * i + winRemainder
+
+# gene1, geneNUM=1, geneStart=1, geneEnd=1000
+# gene2, geneNUM=2, geneStart=1001, geneEnd=2000
+
+# ${taleStart} < ${geneNUM}*1000
+
+
+## Filter for ${PostFC} > 1.5 OR ${RealFC} > 1.5
+## Filter for ${taleScore} < ??
+## Filetr for ${C1Mean} > 10
+## Filetr for ${C2Mean} > 10
+
+
+
+
+
