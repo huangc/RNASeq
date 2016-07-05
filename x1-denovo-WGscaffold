@@ -1,0 +1,75 @@
+
+
+
+##-------------------------------------------
+## Prepare reads with TRegGA Makefile_GPR-orig
+# Raw reads are here:
+# /projects/huangcy/DATA/IRBB7_RNASEQ_RAW
+# Rename the reads to more standard and sensible names. Take only the most distinguishing feature part as the name.
+# strain [.1] (pH) containing no TALe
+# Strain [.2] (pH+avrXa7) for R gene Xa7 in IRBB7
+# strain [.3] (pH+Sac50) for another uncharacterized R gene in IRBB7.
+# Original names: *.fq.gz
+# To be compatible with the TRegGA, rename to *.fastq.gz
+# L1.1-a_FCD2D8FACXX_L7_RICydfTAARAAPEI-93_1.fq.gz
+# L1.1-a_FCD2D8FACXX_L7_RICydfTAARAAPEI-93_2.fq.gz
+# L1.1-b_FCD2D8FACXX_L7_RICydfTABRAAPEI-94_1.fq.gz
+# L1.1-b_FCD2D8FACXX_L7_RICydfTABRAAPEI-94_2.fq.gz
+# L1.2_FCD2D8FACXX_L7_RICydfTACRAAPEI-109_1.fq.gz
+# L1.2_FCD2D8FACXX_L7_RICydfTACRAAPEI-109_2.fq.gz
+# L1.3_FCD2D8HACXX_L4_RICydfTADRAAPEI-118_1.fq.gz
+# L1.3_FCD2D8HACXX_L4_RICydfTADRAAPEI-118_2.fq.gz
+# L2.2_FCD2D8HACXX_L4_RICydfTAERAAPEI-126_1.fq.gz
+# L2.2_FCD2D8HACXX_L4_RICydfTAERAAPEI-126_2.fq.gz
+# L2.3_FCD2D8HACXX_L4_RICydfTAFRAAPEI-18_1.fq.gz
+# L2.3_FCD2D8HACXX_L4_RICydfTAFRAAPEI-18_2.fq.gz
+
+
+cd ${WORK_DIR}/run
+mkdir -p reads
+cd reads
+ln -s ${RAWREAD_DIR}/L1.1-a*_1.fq.gz A1_L11a_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-a*_2.fq.gz A1_L11a_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-b*_1.fq.gz A2_L11b_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.1-b*_2.fq.gz A2_L11b_2.fastq.gz
+
+ln -s ${RAWREAD_DIR}/L1.2*_1.fq.gz B1_L12_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.2*_2.fq.gz B1_L12_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.2*_1.fq.gz B2_L22_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.2*_2.fq.gz B2_L22_2.fastq.gz
+
+ln -s ${RAWREAD_DIR}/L1.3*_1.fq.gz C1_L13_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L1.3*_2.fq.gz C1_L13_2.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.3*_1.fq.gz C2_L23_1.fastq.gz
+ln -s ${RAWREAD_DIR}/L2.3*_2.fq.gz C2_L23_2.fastq.gz
+
+# modify the Makefile_GPR-orig
+\cp Makefile_GPR-orig Makefile_GPR-orig-orig
+sed -i 's/include TRegGA.config/include RNASeq.config/;' Makefile_GPR-orig
+sed -i 's/SOURCE            = ebisra/#SOURCE            = ebisra/;' Makefile_GPR-orig
+sed -i 's/#SOURCE            = local/SOURCE            = local/;' Makefile_GPR-orig
+# Patch the following:
+else
+        SAMPLE            = RNA_SAMPLE#  label used below to identify the location of the read files
+        SYNONYM           = RNA_SYNONYM#  Replace LABEL with an appropriate cultivar name; here IRBB7
+        FASTQDIR          = ${WORK_DIR}/run/reads
+        ACCESSIONS        = RNA_ACCESSIONS#  Choice for demo2, after demo1 was run
+# remove the readsasfasta step
+sed -i 's/trimmedreads readsasfasta fastqca/trimmedreads fastqca/;' Makefile_GPR-orig
+
+# submit makefile jobs
+SAMPLE="A1_L11a A2_L11b B1_L12 B2_L22 C1_L13 C2_L23"
+NUMPROC=4
+for i in ${SAMPLE}
+do
+cd ${WORK_DIR}/run/reads
+mkdir ${i}
+cd ${i}
+\cp ../Makefile_GPR-orig Makefile_GPR-${i}
+sed 's/SAMPLE            = RNA_SAMPLE/SAMPLE            = IRBB7/;' Makefile_GPR-${i}
+sed -i "s/SYNONYM           = RNA_SYNONYM/SYNONYM           = $i/;" Makefile_GPR-${i}
+sed -i "s/ACCESSIONS        = RNA_ACCESSIONS/ACCESSIONS        = $i/;" Makefile_GPR-${i}
+make -j $NUMPROC -I../ -I../../ -f Makefile_GPR-${i} >& err_${i}
+done
+
+
