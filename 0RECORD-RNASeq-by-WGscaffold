@@ -1,0 +1,173 @@
+## This is to idnetify the avrXa7 activated target genes with RNA-Seq reads. We find the RSEM-identified Differentially Expressed (DE) genes 
+#  of the denovo-assembled whole genome (WG) scaffolds that also have the avrXa7 TALE binding sites. 
+#  This approach is different from the previous method of finding DE genes in a well defined Xa7QTL region assembled by the rfguided method. 
+#  The Xa7QTL method is heavily relied on the previous knowledge of the valid Xa7QTL region. The new genetic changes, 
+#  including SNPs, InDels, large insertion and deletions, gene rearrangement, translocation, etc. that had happened to the disease resistant
+#  cultivar and conferred the desired target phenotype, would need to be reconstructed and revealed using rfguided assembly, which in turn, 
+#  is heavily relied on the closeness of the reference genome to the target cultivar, as well as on the reads quality, length, and coverage. 
+#  WGtaleDE method is not relied on the Xa7QTL, but deep coverage and long scaffolds are still preferred for its success.
+
+## For RNA-Seq on whole genome contigs/scaffolds
+# Which one should I use? Contigs or scaffolds?
+# In contigs, 92% contigs are under 1 kb, or 653,255 out of 709,220 contigs are under 1,000 bp long.
+# 55,965 out of 709,220 contigs are over 1,000 bp. The longest contig =70,718.
+# With important regards to sequence lengh, scaffolds have better chance of finding DE gene and TALEN together than in the case of contigs.
+# Use scaffold for making annotation.
+
+##  RNASeq-by-WGscaffold Workflow:
+#1. Denovo assembly of the sample reads into scaffolds with TRegGA denovo.
+#2. Annotation of the scaffolds with sliding-window method.
+#3. Annotation of the scaffolds for rice protein-coding genes with Genome Threader (gth).
+#4. RSEM and EBSeq to find DE genes/windows of the scaffolds, as compared to the controls.
+#5. Identify the TALE binding sites of the scaffolds.
+#6. Identify the DE genes that also have TALE binding sites within the defined distance.
+#7. Characterize the DE gene for its most-likely location in genome (is it in the Xa7QTL?), and its structure/function (could it be a Xa7 gene?).
+
+##------------------------------------------------------------------
+source ./RNASeq.source
+
+##------------------------------------------------------------------
+cd ${TRegGA_DIR}/run
+mkdir -p taleDE
+cd taleDE
+SAMPLE="IR24LR IRBB7LR"
+for i in ${SAMPLE}
+do
+CULTIVAR=${i}
+SYNONYM=${i}
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}.gtf
+
+#4. Identify DE genes with 0RECORD-talenIRBB7LR-scaffolds
+TALEN="talenAVRXA7 talenAVRXA7FS"
+\ls talenAVRXA7-on*.txt | xargs -I {} cat {} > talenAVRXA7_all-${runNAME}.out
+\ls talenAVRXA7FS-on*.txt | xargs -I {} cat {} > talenAVRXA7FS_all-${runNAME}.out
+
+queryseq=`\ls *.fa`
+for p in ${TALEN}
+for q in ${queryseq}
+cp ${RNASeq_DIR}/run/talen_avrXA7_on_IRBB7LR_IR24LR_scaffolds/talen${p}-on-${q}.txt
+
+#5. Rearrange columns of pTalen table and add ${PTALEN} for clarity.
+# Sequence_Name(#1)  ${PTALEN} TAL_1(#2) TAL_2(#3) TAL_1_Score(#4) TAL_2_Score(#5) 
+# TAL_1_Start(#6) TAL_2_Start(#7) Spacer_Length(#8) TAL_1_Target(#9) TAL_2_Target(#10).
+# Change the TAL_Target such that "T TCCTGAAGAATTGATTCACTTC" becomes "TTCCTGAAGAATTGATTCACTTC"
+
+cd ${run_DIR}/ptalen
+\rm -f pairedtalesf.pTALENs-on-${REFSEQNAME}.txt
+for p in ${PTALEN}
+do
+sed -r 's/\bT\s/T/g' pairedtalesf.${p}-on-${REFSEQNAME}.txt | \
+awk -v Rvd=${p} '{ FS="\t"; print $1,$6,$7,$8,$9,$10,$2,$3,$4,$5,Rvd }' | \
+tail -n+4 >> pairedtalesf.pTALENs-on-${REFSEQNAME}.txt
+done
+
+#3. Generate the join table that contains the "associated" pTALEN and indels, 
+# where "associated" is defined as having their distance within ${PDEL} bp.
+# Join the tables by Tname(#1), tGapStart(#2), tGapSize(#3)
+#
+cd ${run_DIR}/ptalen
+\cp ${run_DIR}/t_onQ/Seq.t_onQ_Lg${GAP_MINSIZE}.table Seq.t_Lg${GAP_MINSIZE}.table
+
+\rm -f Seq.t_pTALENs-on-${REFSEQNAME}.out
+\rm -f Seq.t_pTALENs-on-${REFSEQNAME}.err
+
+# First go through the list in the pTALEN binding site table
+row=`awk 'END { print NR }' pairedtalesf.pTALENs-on-${REFSEQNAME}.txt`
+for ((m=1; m<=$row; m++))
+do
+head -$m pairedtalesf.pTALENs-on-${REFSEQNAME}.txt | tail -1 > Prec
+Pname=`cut -d " " -f1 Prec`
+pTAL1Start=`cut -d " " -f2 Prec`
+pTAL2Start=`cut -d " " -f3 Prec`
+pSpacerLen=`cut -d " " -f4 Prec`
+pTAL1Target=`cut -d " " -f5 Prec`
+pTAL2Target=`cut -d " " -f6 Prec`
+pTAL1Rvd=`cut -d " " -f7 Prec`
+pTAL2Rvd=`cut -d " " -f8 Prec`
+pTAL1Score=`cut -d " " -f9 Prec`
+pTAL2Score=`cut -d " " -f10 Prec`
+pTALEN=`cut -d " " -f11 Prec`
+
+## Now look into the deletion table to find the associated deletion sites
+# Sort and grep the lines before and after pTALEN record in the deletion table, 
+# which contain the potentially associated deletion sites.
+# Below is an example of merged pTALEN and neighboring deletion sites for pTALEN_Os11N3
+# OsjChr11 18154472 12 973703 886 1 YB7;
+# OsjChr11 18155715 124 1185193 6 0 YB3;
+# OsjChr11 18159763 6 1185193 3930 0 YB3;
+# OsjChr11 18174463 18174525 19 TGCTTGAAGGCTTGATGAGCTTA TCTTCCTTCCTAGCACTATATAA RVD2 RVD1 9.09 5.17 pTALEN_Os11N3
+# OsjChr11 18174493 6 1093746 776 1 YB2;
+# OsjChr11 18174493 6 1158410 2799 1 YB6;
+# OsjChr11 18174493 6 1159256 1722 1 YB7;
+# OsjChr11 18174493 6 1168565 4308 1 YB5;
+# OsjChr11 18174493 6 1191711 4312 1 YB3;
+# OsjChr11 18174493 6 1245264 1719 1 YB4;
+# OsjChr11 18174493 6 1300843 1839 1 YB8;
+# OsjChr11 18183519 297 706663 290 0 YB7;
+# OsjChr11 18197060 50 792319 291 0 YB5;
+
+# Sample1  |---------|       |-----------------|xxxxxxxxxxxx|-----------------|    |-------|
+# Sample2  |---------|       |-----------------|xxxxxxxxxxxx|-----------------|    |-------|
+# Sample4  |---------|       |-----------------|xxxxxxxxxxxx|-----------------|    |-------|
+# Sample5  |---------|       |-----------------|xxxxxxxxxxxx|-----------------|    |-------|
+# Sample8  |---------|       |-----------------|xxxxxxxxxxxx|-----------------|    |-------|
+# Scenario1                                  |==|
+
+# RefSeq   |-------------------------|x|-|xx|--|x|------------------|
+# Scenario2 (pTALEN sized up)     |===============|
+
+# In Scenario1, there are deletions at the same position from multiple samples.
+# In Scenario2, pTALEN, about 70-80 bp in average, may cover more than one deletions
+# To consider these scenarios, grep (SAMPLENUM x DELNUM) of neighboring deletion sites (lines) to compare with each pTALEN records,
+# where DELNUM is the number of deletions that may be covered within the length of pTALEN
+# pTALEN is 70-80 bp in average, including the spacer. Minimal deletion size is set by GAP_MINSIZE.
+# Set DELNUM accordingly, but 4 should be more than enough for most cases.
+DELNUM=4
+
+cat Prec Seq.t_Lg${GAP_MINSIZE}.table | grep -w "${Pname}" | sort -k2 -n |\
+ grep -B`expr ${SAMPLENUM} \* ${DELNUM}` -A`expr ${SAMPLENUM} \* ${DELNUM}` ${pTALEN} > Prec.${Pname}.${pTAL1Start}
+
+grep -v "${pTALEN}" Prec.${Pname}.${pTAL1Start} > Prec.${Pname}.${pTAL1Start}.deletion
+len=`awk 'END { print NR }' Prec.${Pname}.${pTAL1Start}.deletion`
+for ((p=1; p<=$len; p++))
+do
+head -$p Prec.${Pname}.${pTAL1Start}.deletion | tail -1 > Trec
+Tname=`cut -d " " -f1 Trec`
+tGapStart=`cut -d " " -f2 Trec`
+tGapSize=`cut -d " " -f3 Trec`
+tGapEnd=`expr $tGapStart + $tGapSize`
+Qname=`cut -d " " -f4 Trec`
+qGapStart=`cut -d " " -f5 Trec`
+qGapSize=`cut -d " " -f6 Trec`
+qGapEnd=`expr $qGapStart + $qGapSize`
+Samples=`cut -d " " -f7 Trec`
+
+if (( ${pTAL1Start} < ${tGapStart} && `expr ${tGapStart} - ${pTAL2Start}` < ${PDEL} )); then
+   echo "${Tname} ${tGapStart} ${tGapSize} ${tGapEnd} ${Samples} ${Qname} ${qGapStart} ${qGapSize} ${qGapEnd}\
+ ${pTAL1Start} ${pSpacerLen} ${pTAL2Start} ${pTAL1Target} ${pTAL2Target}\
+ ${pTAL1Rvd} ${pTAL2Rvd} ${pTAL1Score} ${pTAL2Score} ${pTALEN}" >> Seq.t_pTALENs-on-${REFSEQNAME}.out
+elif (( ${pTAL1Start} >= ${tGapStart} && ${pTAL1Start} < ${tGapEnd} )); then
+        echo "${Tname} ${tGapStart} ${tGapSize} ${tGapEnd} ${Samples} ${Qname} ${qGapStart} ${qGapSize} ${qGapEnd}\
+ ${pTAL1Start} ${pSpacerLen} ${pTAL2Start} ${pTAL1Target} ${pTAL2Target}\
+ ${pTAL1Rvd} ${pTAL2Rvd} ${pTAL1Score} ${pTAL2Score} ${pTALEN}" >> Seq.t_pTALENs-on-${REFSEQNAME}.out
+elif (( ${pTAL1Start} > ${tGapEnd} && `expr  ${pTAL1Start} - ${tGapEnd}` < ${PDEL} )); then
+        echo "${Tname} ${tGapStart} ${tGapSize} ${tGapEnd} ${Samples} ${Qname} ${qGapStart} ${qGapSize} ${qGapEnd}\
+ ${pTAL1Start} ${pSpacerLen} ${pTAL2Start} ${pTAL1Target} ${pTAL2Target}\
+ ${pTAL1Rvd} ${pTAL2Rvd} ${pTAL1Score} ${pTAL2Score} ${pTALEN}" >> Seq.t_pTALENs-on-${REFSEQNAME}.out
+else
+	echo "Deletion at ${Tname}-${tGapStart}-${tGapEnd} does not match pTALEN at\
+ ${Pname}-${pTAL1Start}-${pTAL2Start}" >> Seq.t_pTALENs-on-${REFSEQNAME}.err
+fi
+
+done
+done
+
+echo "Tname tGapStart tGapSize tGapEnd Samples Qname qGapStart qGapSize qGapEnd pTAL1Start pSpacerLen pTAL2Start\
+ pTAL1Target pTAL2Target pTAL1Rvd pTAL2Rvd pTAL1Score pTAL2Score pTALEN" |\
+ cat - Seq.t_pTALENs-on-${REFSEQNAME}.out > Seq.t_pTALENs-on-${REFSEQNAME}.OUT
+
+  
+
