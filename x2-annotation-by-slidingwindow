@@ -1,0 +1,45 @@
+## RNASeq is a workflow to find Differentially Expressed (DE) genes using RNS-Seq reads data.
+
+#### RNA-Seq analysis
+source RNASeq.source
+
+##-----------------------------------------
+## Annotation of the TARGET by sliding-window of 1 Kb.
+# Prepare targets
+cd ${WORK_DIR}/targets
+
+##-----------------------------------------
+## Generate the annotation_by_sliding_window gff file using 1-kb sliding window method, with starting position at 1.
+# copy the following fasta and embl files from either ${TRegGA_DIR}/targets or 
+# copy ${TRegGA_DIR}/assembly/rfguided/${SYNOM}-on-${TARGET}/EVALUATION/${SYNONYM}-${TARGET}.fa and embl to here.
+
+# Usage: python annotation_by_sliding_window.py myseq.fa winStart winSize myseq.gff
+cd ${WORK_DIR}/targets
+# TARGET="DJ123_scaffold10 IRBB7-DJ123_scaffold10 DV86-DJ123_scaffold10 IRBB62-DJ123_scaffold10"
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}_1_1000.gtf
+
+python ../bin/annotation_by_sliding_window.py ${SUBJECTFA} 1 1000 ${SUBJECTGFF}
+
+done
+
+##---------------------------------------
+# Annotation of the WGscaffold by sliding-window of 1 Kb.
+cd ${WORK_DIR}/targets
+# TARGET="IR24LR IRBB7LR"
+for i in ${TARGET}
+do
+cp ${TRegGA_DIR}/assembly/denovo/${i}/${i}-GF/${i}-GF.gapfilled.final.fa ${i}.fa
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTEMBL=${i}.embl
+SUBJECTGFF=${i}_1_1000.gtf
+
+python ../bin/annotation_by_sliding_window.py ${SUBJECTFA} 1 1000 ${SUBJECTGFF}
+
+done
+
