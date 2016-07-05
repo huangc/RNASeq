@@ -1,0 +1,91 @@
+##. Identify the DE genes that also have TALE binding sites within the defined distance.
+##------------------------------------------------------------------
+## Required files and example contents
+# ebseq files (results of x4-RSEM-EBseq):
+# ${WORK_DIR}/run/ebseq/BvsA-on-${TARGET}.genes.${FDRNAME}.txt
+# ${WORK_DIR}/run/ebseq/CvsA-on-${TARGET}.genes.${FDRNAME}.txt
+# ${WORK_DIR}/run/ebseq/BvsC-on-${TARGET}.genes.${FDRNAME}.txt
+# "PPEE"  "PPDE"  "PostFC"        "RealFC"        "C1Mean"        "C2Mean"
+# "C1004356.gene1"        0       1       1.43416177840388        1.43432201569067        2431.05750761245        1694.91448767985
+# "C1015522.gene1"        0       1       2.57885915878863        2.57963336718133        3290.82305607212        1275.68797240911
+
+# taleBS files (results of x5-tale-on-WGscaffold):
+# ${WORK_DIR}/run/tale_${runNAME}/taleAVRXA7all-on-${TARGET}.fa.txt
+# options_used:search reverse complement, upstream_base = T , cutoff = 3.00, rvd_sequence = 
+# NI_HG_NI_NI_NS_HD_NN_HD_HD_HD_NS_N*_HD_HD_NS_NS_NN_NN_NI_NG_NN_NI_N*_NS_N*
+# Best Possible Score:9.96
+# Sequence Name   Strand  Score   Start Position  Target Sequence Plus strand sequence
+# C1385492        Minus   18.21   165     T ATAACAACCCACCCACAACTCACAC     GTGTGAGTTGTGGGTGGGTTGTTAT A
+# scaffold20651   Minus   18.43   16250   T ATCACCACCCACACACCGATAACAT     ATGTTATCGGTGTGTGGGTGGTGAT A
+ 
+##------------------------------------------------------------------
+source ./RNASeq.source
+cd ${RNASeq_DIR}/run
+mkdir -p taleDE
+cd taleDE
+cp -s ${WORK_DIR}/run/tale_${runNAME}/taleAVRXA7all-on-*.txt .
+cp -s ${WORK_DIR}/run/ebseq/*-on-*.genes.${FDRNAME}.txt .
+
+for i in ${TARGET}
+do
+SUBJECTNAME=${i}
+SUBJECTFA=${i}.fa
+SUBJECTGFF=${i}_1_1000.gtf
+
+# Change the TAL_Target such that "T TCCTGAAGAATTGATTCACTTC" becomes "TTCCTGAAGAATTGATTCACTTC"
+sed -r 's/\bT\s/T/g' taleAVRXA7all-on-${i}.fa.txt | \
+awk '{ FS="\t";OFS="\t"; print $1,$2,$3,$4,$5 }' | \
+grep -v "^options_used" | grep -v "^Best" | grep -v "^Sequence" > tale-on-${i}.tab
+
+## Generate the join table that contains the "associated" taleBS and DE gene if they fall into the same scaffold.
+# First go through the list in each of ?vs?-on-${TARGET}.genes.${FDRNAME}.txt
+DEexp="BvsA CvsA BvsC"
+for k in ${DEexp}
+do
+# Remove the " ", and separate the "scaffoldID.geneID" into scaffoldID geneID
+tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgene/g;' > ${k}-on-${i}.genes.${FDRNAME}.tab
+\rm -f ${k}-on-${i}.taleDE.tab
+
+
+
+
+rowEB=`awk 'END { print NR }' ${k}-on-${i}.genes.${FDRNAME}.tab`
+for ((m=1; m<=$rowEB; m++))
+do
+head -$m ${k}-on-${i}.genes.${FDRNAME}.tab | tail -1 > recEB
+scaffoldID=`cut -f1 recEB`
+geneID=`cut -f2 recEB`
+PPEE=`cut -f3 recEB`
+PPDE=`cut -f4 recEB`
+PostFC=`cut -f5 recEB`
+RealFC=`cut -f6 recEB`
+C1Mean=`cut -f7 recEB`
+C2Mean=`cut -f8 recEB`
+
+## Now look into the taleBS table to find the associated taleDE
+grep "$scaffoldID" tale-on-${i}.tab > recEB_tale
+rowEBtale=`awk 'END { print NR }' recEB_tale`
+if [ -s recEB_tale ]
+then
+for ((p=1; p<=$rowEBtale; p++))
+do
+head -$p recEB_tale | tail -1 > recEB_talerec
+talescaffoldID=`cut -f1 recEB_talerec`
+taleStrand=`cut -f2 recEB_talerec`
+taleScore=`cut -f3 recEB_talerec`
+taleStart=`cut -f4 recEB_talerec`
+taleTarget=`cut -f5 recEB_talerec`
+
+echo "${scaffoldID} ${geneID} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
+ ${talescaffoldID} ${taleStrand} ${taleScore} ${taleStart} ${taleTarget}" >> ${k}-on-${i}.taleDE.tab
+done
+fi
+done
+
+
+
+
+echo "scaffoldID geneID PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
+ cat - ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE.tab
+done
+done
