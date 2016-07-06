@@ -161,6 +161,19 @@ git submodule update --init --recursive
 export PATH=${WORK_DIR}/src/STAR/bin/Linux_x86_64
 
 ```
+
+### TOPHAT
+
+see http://tophat.cbcb.umd.edu/
+Last update: April 19, 2012
+
+```bash
+wget http://tophat.cbcb.umd.edu/downloads/tophat-2.0.0.Linux_x86_64.tar.gz
+tar -xzf tophat-2.0.0.Linux_x86_64.tar.gz
+cd tophat-2.0.0.Linux_x86_64/
+cp bam2fastx bam_merge bed_to_juncs closure_juncs contig_to_chr_coords fix_map_ordering gtf_juncs gtf_to_fasta juncs_db long_spanning_reads map2 gtf prep_reads sam_juncs segment_juncs sra_to_solid tophat tophat2 tophat-fusion-post tophat_reports /usr/local/bin/
+```
+
 ### Trimmomatic
 
 See http://www.usadellab.org/cms/index.php?page=trimmomatic.
