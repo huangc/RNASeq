@@ -166,6 +166,7 @@ export PATH=${WORK_DIR}/src/STAR/bin/Linux_x86_64
 
 see http://tophat.cbcb.umd.edu/
 Last update: April 19, 2012
+bowtie2-2.2.5	only works with	tophat-2.0.0, so specify that tophat version for installation
 
 ```bash
 wget http://tophat.cbcb.umd.edu/downloads/tophat-2.0.0.Linux_x86_64.tar.gz
