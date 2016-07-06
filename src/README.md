@@ -162,7 +162,7 @@ export PATH=${WORK_DIR}/src/STAR/bin/Linux_x86_64
 
 ```
 
-### TOPHAT
+### Tophat
 
 see http://tophat.cbcb.umd.edu/
 Last update: April 19, 2012
