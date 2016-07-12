@@ -20,96 +20,203 @@
  
 ##------------------------------------------------------------------
 source ./RNASeq.source
+DEexp="BvsA CvsA BvsC"
+WINSTART=1
+WINSIZE=1000
+TALEDIST=300
+MINFC=4
+# Two positive controls
+# OS11T0508600, OsSWEET14, tale score 29.95, FC = 347.4
+# OS04T0268700, Eggshell protein family protein, tale score 27.06, FC = 7.7
+MAXSCORE=30 #tale cutoff=2.5
+GTHDIST=2000
+
+##------------------------------------------------------------------
 cd ${RNASeq_DIR}/run
 mkdir -p taleDE
 cd taleDE
 cp -s ${WORK_DIR}/run/tale_${runNAME}/taleAVRXA7all-on-*.txt .
-cp -s ${WORK_DIR}/run/ebseq/*-on-*.genes.${FDRNAME}.txt .
+cp -s ${WORK_DIR}/run/ebseq-on-WGscaffolds/*-on-*.genes.${FDRNAME}.txt .
+cp -s ${WORK_DIR}/run/gth-on-WGscaffold/gth.*-on-*.gff3 .
 
 for i in ${TARGET}
 do
-SUBJECTNAME=${i}
-SUBJECTFA=${i}.fa
-SUBJECTGFF=${i}_1_1000.gtf
-
+##--------------------------------
+## Generate the join table that contains the "associated" taleBS and DE gene if they fall into the same scaffold.
+#
 # Change the TAL_Target such that "T TCCTGAAGAATTGATTCACTTC" becomes "TTCCTGAAGAATTGATTCACTTC"
 sed -r 's/\bT\s/T/g' taleAVRXA7all-on-${i}.fa.txt | \
 awk '{ FS="\t";OFS="\t"; print $1,$2,$3,$4,$5 }' | \
 grep -v "^options_used" | grep -v "^Best" | grep -v "^Sequence" > tale-on-${i}.tab
 
-## Generate the join table that contains the "associated" taleBS and DE gene if they fall into the same scaffold.
-# First go through the list in each of ?vs?-on-${TARGET}.genes.${FDRNAME}.txt
-DEexp="BvsA CvsA BvsC"
+##--------------------------------
+# Go through each of ?vs?-on-${TARGET}.genes.${FDRNAME}.txt
+# Remove the " ", and make the "scaffoldID.geneID" into 4 columns of scaffoldID.geneID scaffoldID geneID geneNUM:
 for k in ${DEexp}
 do
-# Remove the " ", and separate the "scaffoldID.geneID" into scaffoldID geneID
-tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgene/g;' | sort -k1,2  > ${k}-on-${i}.genes.${FDRNAME}.tab
+tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgene/g;' |\
+ awk '{ FS="\t";OFS="\t"; print $1"."$2,$1,$2,$3,$4,$5,$6,$7,$8 }'|\
+ sort -k1,2  > ${k}-on-${i}.genes.${FDRNAME}.tab
+sed 's/\tgene/\tgene\t/;' ${k}-on-${i}.genes.${FDRNAME}.tab |\
+ awk '{ FS="\t";OFS="\t"; print $1,$2,$3.$4,$4,$5,$6,$7,$8,$9,$10 }' > tmp && \mv tmp ${k}-on-${i}.genes.${FDRNAME}.tab
+done
+
+# Now look into the taleBS table to find the associated taleDE
 \rm -f ${k}-on-${i}.taleDE.tab
-
-
-##-----------
+for k in ${DEexp}
+do
+#--
 rowEB=`awk 'END { print NR }' ${k}-on-${i}.genes.${FDRNAME}.tab`
 for ((m=1; m<=$rowEB; m++))
 do
-head -$m ${k}-on-${i}.genes.${FDRNAME}.tab | tail -1 > recEB
-scaffoldID=`cut -f1 recEB`
-geneID=`cut -f2 recEB`
-cut -f2 recEB > rec_geneID
-sed -i 's/gene/gene\t/;' rec_geneID
-geneNUM=`cut -f2 rec_geneID`
-PPEE=`cut -f3 recEB`
-PPDE=`cut -f4 recEB`
-PostFC=`cut -f5 recEB`
-RealFC=`cut -f6 recEB`
-C1Mean=`cut -f7 recEB`
-C2Mean=`cut -f8 recEB`
+head -$m ${k}-on-${i}.genes.${FDRNAME}.tab | tail -1 > recEB-${k}-on-${i}
+scaffoldGeneID=`cut -f1 recEB-${k}-on-${i}`
+scaffoldID=`cut -f2 recEB-${k}-on-${i}`
+geneID=`cut -f3 recEB-${k}-on-${i}`
+geneNUM=`cut -f4 recEB-${k}-on-${i}`
+PPEE=`cut -f5 recEB-${k}-on-${i}`
+PPDE=`cut -f6 recEB-${k}-on-${i}`
+PostFC=`cut -f7 recEB-${k}-on-${i}`
+RealFC=`cut -f8 recEB-${k}-on-${i}`
+C1Mean=`cut -f9 recEB-${k}-on-${i}`
+C2Mean=`cut -f10 recEB-${k}-on-${i}`
 
-## Now look into the taleBS table to find the associated taleDE
-grep "$scaffoldID" tale-on-${i}.tab > recEB_tale
-rowEBtale=`awk 'END { print NR }' recEB_tale`
-if [ -s recEB_tale ]
+#
+grep "\b$scaffoldID\b" tale-on-${i}.tab > recEB_tale-${k}-on-${i}
+rowEBtale=`awk 'END { print NR }' recEB_tale-${k}-on-${i}`
+if [ -s recEB_tale-${k}-on-${i} ]
 then
 for ((p=1; p<=$rowEBtale; p++))
 do
-head -$p recEB_tale | tail -1 > recEB_talerec
-talescaffoldID=`cut -f1 recEB_talerec`
-taleStrand=`cut -f2 recEB_talerec`
-taleScore=`cut -f3 recEB_talerec`
-taleStart=`cut -f4 recEB_talerec`
-taleTarget=`cut -f5 recEB_talerec`
-echo "${scaffoldID} ${geneID} ${geneNUM} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
+head -$p recEB_tale-${k}-on-${i} | tail -1 > recEB_talerec-${k}-on-${i}
+talescaffoldID=`cut -f1 recEB_talerec-${k}-on-${i}`
+taleStrand=`cut -f2 recEB_talerec-${k}-on-${i}`
+taleScore=`cut -f3 recEB_talerec-${k}-on-${i}`
+taleStart=`cut -f4 recEB_talerec-${k}-on-${i}`
+taleTarget=`cut -f5 recEB_talerec-${k}-on-${i}`
+echo "${scaffoldGeneID} ${scaffoldID} ${geneID} ${geneNUM} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
  ${talescaffoldID} ${taleStrand} ${taleScore} ${taleStart} ${taleTarget}" >> ${k}-on-${i}.taleDE.tab
 done
 fi
 done
-##-----------
-
-
-echo "scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
- cat - ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE.tab
+#--
+#
+echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
+ cat - ${k}-on-${i}.taleDE.tab > tmp && \mv tmp ${k}-on-${i}.taleDE.tab
 done
 done
 
 
-## Filter for taleDE gene that are within 100 bp of taleBS
+##-------------------------------------
+## Filter for taleDE gene that are within 250 bp of taleBS, fold change > $MINFC, max tale score < $MAXSCORE
 #Note: 
-# winStart=1
-# sinSize=1000
 # geneStart= winStart + winSize * i
 # geneEnd= (winStart - 1) + winSize * i + winRemainder
-
+# Example:
 # gene1, geneNUM=1, geneStart=1, geneEnd=1000
 # gene2, geneNUM=2, geneStart=1001, geneEnd=2000
+# So the distance filter
+# ${taleStart} < ${geneNUM}*1000+300
+# ${taleStart} > (${geneNUM}-1)*1000+300
 
-# ${taleStart} < ${geneNUM}*1000
+for i in ${TARGET}
+do
+for k in ${DEexp}
+do
+## Filter for taleDE gene that are within 250 bp of taleBS
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
+ '{ if ( $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize+taleDist)) print }'\
+  ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE_foo1.tab  
+## Filter for ${PostFC} > $MINFC OR ${RealFC} > $MINFC
+awk -v minFC="${MINFC}" '{ if ( $6 >= minFC || $7 >= minFC ) print }' ${k}-on-${i}.taleDE_foo1.tab > ${k}-on-${i}.taleDE_foo2.tab
+## Filter for ${taleScore} < 26.5
+awk -v maxScore="${MAXSCORE}" '{ if ( $12 <= maxScore ) print }' ${k}-on-${i}.taleDE_foo2.tab > ${k}-on-${i}.taleDE_foo3.tab
+## Add header
+echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
+ cat - ${k}-on-${i}.taleDE_foo3.tab > ${k}-on-${i}.taleDE_flt.tab
+done
+done
+
+# Remove tmp files
+\rm -r *foo*
+
+##-----------------------------------
+## Annotate the taleDE table with the gth annotation
+for i in ${TARGET}
+do
+for k in ${DEexp}
+do
+#--
+\rm -f ${k}-on-${i}.taleDE_gth.tab
+rowEB=`awk 'END { print NR }' ${k}-on-${i}.taleDE_flt.tab`
+for ((m=2; m<=$rowEB; m++))
+do
+head -$m ${k}-on-${i}.taleDE_flt.tab | tail -1 > recEB-${k}-on-${i}
+scaffoldGeneID=`cut -d" " -f1 recEB-${k}-on-${i}`
+scaffoldID=`cut -d" " -f2 recEB-${k}-on-${i}`
+geneID=`cut -d" " -f3 recEB-${k}-on-${i}`
+geneNUM=`cut -d" " -f4 recEB-${k}-on-${i}`
+PPDE=`cut -d" " -f5 recEB-${k}-on-${i}`
+PostFC=`cut -d" " -f6 recEB-${k}-on-${i}`
+RealFC=`cut -d" " -f7 recEB-${k}-on-${i}`
+C1Mean=`cut -d" " -f8 recEB-${k}-on-${i}`
+C2Mean=`cut -d" " -f9 recEB-${k}-on-${i}`
+talescaffoldID=`cut -d" " -f10 recEB-${k}-on-${i}`
+taleStrand=`cut -d" " -f11 recEB-${k}-on-${i}`
+taleScore=`cut -d" " -f12 recEB-${k}-on-${i}`
+taleStart=`cut -d" " -f13 recEB-${k}-on-${i}`
+taleTarget=`cut -d" " -f14 recEB-${k}-on-${i}`
+
+grep "\b$scaffoldID\b" gth.${GTH_PRTDB}-on-${i}.gff3 | grep "\bmRNA\b" > recGTH-${k}-on-${i}
+rowGTH=`awk 'END { print NR }' recGTH-${k}-on-${i}`
+if [ -s recGTH-${k}-on-${i} ]
+then
+for ((p=1; p<=$rowGTH; p++))
+do
+head -$p recGTH-${k}-on-${i} | tail -1 > recGTHrec-${k}-on-${i}
+GTHscaffoldID=`cut -f1 recGTHrec-${k}-on-${i}`
+GTHstart=`cut -f4 recGTHrec-${k}-on-${i}`
+GTHend=`cut -f5 recGTHrec-${k}-on-${i}`
+GTHstrand=`cut -f7 recGTHrec-${k}-on-${i}`
+GTHattrib=`cut -f9 recGTHrec-${k}-on-${i}`
+echo "${scaffoldGeneID} ${scaffoldID} ${geneID} ${geneNUM} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
+ ${talescaffoldID} ${taleStrand} ${taleScore} ${taleStart} ${taleTarget}\
+ ${GTHscaffoldID} ${GTHstart} ${GTHend} ${GTHstrand} ${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
+done
+fi
+done
+done
+done
 
 
-## Filter for ${PostFC} > 1.5 OR ${RealFC} > 1.5
-## Filter for ${taleScore} < ??
-## Filetr for ${C1Mean} > 10
-## Filetr for ${C2Mean} > 10
+## Filter for gth annotation that are located in the range of geneID Start and End positions
+#                    Gene1                  Gene2                    Gene3
+# Genes           |---------|       |xxxxxxxxxxxxxxxxxxxxxxxx|    |-------|
+# SlideWindow - Neg             |==|                          |==|
+# SlideWindow - Pos               |==|     |==|    |==|    |==|
+# Neg: $GTHstart >= $geneNUM*1000 OR $GTHend <= ($geneNUM-1)*1000
+# Pos: $GTHstart <= $geneNUM*1000 AMD $GTHend >= ($geneNUM-1)*1000
+for i in ${TARGET}
+do
+for k in ${DEexp}
+do
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v gthDist="${GTHDIST}" '{ OFS="\t"; if ( ($16-gthDist) <= ($4*winSize) && ($17+gthDist) >= (($4-1)*winSize)) print }'\
+  ${k}-on-${i}.taleDE_gth.tab > ${k}-on-${i}.taleDE_gth_flt.tab
 
+## Add header
+echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean\
+ talescaffoldID taleStrand taleScore taleStart taleTarget\
+ GTHscaffoldID GTHstart GTHend GTHstrand GTHattrib" |\
+ cat - ${k}-on-${i}.taleDE_gth_flt.tab > tmp && \mv tmp ${k}-on-${i}.taleDE_gth_flt.tab
 
+done 
+done
 
+## Combine DEexp experiments by writing into individual $scaffoldGeneID files
+for i in ${TARGET}
+do
+for k in ${DEexp}
+do
+${k}-on-${i}.taleDE_gth_flt.tab
 
 
