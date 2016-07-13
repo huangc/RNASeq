@@ -17,20 +17,13 @@
 # Sequence Name   Strand  Score   Start Position  Target Sequence Plus strand sequence
 # C1385492        Minus   18.21   165     T ATAACAACCCACCCACAACTCACAC     GTGTGAGTTGTGGGTGGGTTGTTAT A
 # scaffold20651   Minus   18.43   16250   T ATCACCACCCACACACCGATAACAT     ATGTTATCGGTGTGTGGGTGGTGAT A
+
+# Two positive controls for RNASeq experiment
+# OS11T0508600, OsSWEET14, tale score 29.95, FC = 347.4
+# OS04T0268700, Eggshell protein family protein, tale score 27.06, FC = 7.7
  
 ##------------------------------------------------------------------
 source ./RNASeq.source
-DEexp="BvsA CvsA BvsC"
-WINSTART=1
-WINSIZE=1000
-TALEDIST=300
-MINFC=4
-# Two positive controls
-# OS11T0508600, OsSWEET14, tale score 29.95, FC = 347.4
-# OS04T0268700, Eggshell protein family protein, tale score 27.06, FC = 7.7
-MAXSCORE=30 #tale cutoff=2.5
-GTHDIST=2000
-
 ##------------------------------------------------------------------
 cd ${RNASeq_DIR}/run
 mkdir -p taleDE
@@ -108,7 +101,7 @@ done
 
 
 ##-------------------------------------
-## Filter for taleDE gene that are within 250 bp of taleBS, fold change > $MINFC, max tale score < $MAXSCORE
+## Filter for taleDE gene that are within $TALEDIST bp of taleBS, fold change > $MINFC, max tale score < $MAXSCORE
 #Note: 
 # geneStart= winStart + winSize * i
 # geneEnd= (winStart - 1) + winSize * i + winRemainder
@@ -118,14 +111,21 @@ done
 # So the distance filter
 # ${taleStart} < ${geneNUM}*1000+300
 # ${taleStart} > (${geneNUM}-1)*1000+300
+## Association of the slidingWindow annotation and the tale binding site
+#                                TALEDIST        Gene        TALEDIST
+# SlidingWindow Genes                |-------|xxxxxxxxxx|-------|
+# tale binding site - Neg      |==|                               |==|
+# SlideWindow - Pos               |==|     |==|    |==|    |==|
+# Neg: $taleStart >= $geneNUM*1000+$TALEDIST OR $taleStart <= ($geneNUM-1)*1000-$TALEDIST
+# Pos: $taleStart <= $geneNUM*1000+$TALEDIST AND $taleStart >= ($geneNUM-1)*1000-$TALEDIST
 
 for i in ${TARGET}
 do
 for k in ${DEexp}
 do
-## Filter for taleDE gene that are within 250 bp of taleBS
+## Filter for taleDE gene that are within $TALEDIST bp of taleBS
 awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
- '{ if ( $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize+taleDist)) print }'\
+ '{ if ( $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize-taleDist)) print }'\
   ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE_foo1.tab  
 ## Filter for ${PostFC} > $MINFC OR ${RealFC} > $MINFC
 awk -v minFC="${MINFC}" '{ if ( $6 >= minFC || $7 >= minFC ) print }' ${k}-on-${i}.taleDE_foo1.tab > ${k}-on-${i}.taleDE_foo2.tab
@@ -189,13 +189,13 @@ done
 done
 
 
-## Filter for gth annotation that are located in the range of geneID Start and End positions
+## Association of the slidingWindow annotation with the gth annotation
 #                    Gene1                  Gene2                    Gene3
-# Genes           |---------|       |xxxxxxxxxxxxxxxxxxxxxxxx|    |-------|
+# gth Genes       |---------|       |xxxxxxxxxxxxxxxxxxxxxxxx|    |-------|
 # SlideWindow - Neg             |==|                          |==|
 # SlideWindow - Pos               |==|     |==|    |==|    |==|
 # Neg: $GTHstart >= $geneNUM*1000 OR $GTHend <= ($geneNUM-1)*1000
-# Pos: $GTHstart <= $geneNUM*1000 AMD $GTHend >= ($geneNUM-1)*1000
+# Pos: $GTHstart <= $geneNUM*1000 AND $GTHend >= ($geneNUM-1)*1000
 for i in ${TARGET}
 do
 for k in ${DEexp}
@@ -218,5 +218,11 @@ do
 for k in ${DEexp}
 do
 ${k}-on-${i}.taleDE_gth_flt.tab
+
+
+
+## Remove tmp files
+\rm recEB*
+\rm recGTH*
 
 
