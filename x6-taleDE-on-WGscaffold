@@ -190,8 +190,8 @@ done
 
 
 ## Association of the slidingWindow annotation with the gth annotation
-#                    Gene1                  Gene2                    Gene3
-# gth Genes       |---------|       |xxxxxxxxxxxxxxxxxxxxxxxx|    |-------|
+#                    Gene1          gthDist    Gene2     gthDist     Gene3
+# gth Genes       |---------|       |====|xxxxxxxxxxxxxxx|====|    |-------|
 # SlideWindow - Neg             |==|                          |==|
 # SlideWindow - Pos               |==|     |==|    |==|    |==|
 # Neg: $GTHstart >= $geneNUM*1000 OR $GTHend <= ($geneNUM-1)*1000
