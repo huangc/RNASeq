@@ -251,12 +251,12 @@ do
 \rm -f ${i}.taleDE_gth_exp.tab
 for k in ${DEexp}
 do
-awk -v deexp="${k}" '{ print deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_flt.tab > ${k}-on-${i}.taleDE_gth_exp.tab
+awk -v target="${i}" -v deexp="${k}" '{ print target"\t"deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_flt.tab > ${k}-on-${i}.taleDE_gth_exp.tab
 cat ${k}-on-${i}.taleDE_gth_exp.tab >> ${i}.taleDE_gth_exp.tab
 done 
 sort -k2 ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
 ## Add header
-echo -e "DEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
+echo -e "Target\tDEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
 \ttalescaffoldID\ttaleStrand\ttaleScore\ttaleStart\ttaleTarget\
 \tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib" |\
  cat - ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
@@ -267,4 +267,5 @@ done
 \rm -f *foo*
 \rm -f recEB*
 \rm -f recGTH*
+
 
