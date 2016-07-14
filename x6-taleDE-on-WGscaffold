@@ -53,7 +53,12 @@ tail -n+2 ${k}-on-${i}.genes.${FDRNAME}.txt | sed 's/"//g;' | sed 's/.gene/\tgen
 sed 's/\tgene/\tgene\t/;' ${k}-on-${i}.genes.${FDRNAME}.tab |\
  awk '{ FS="\t";OFS="\t"; print $1,$2,$3.$4,$4,$5,$6,$7,$8,$9,$10 }' > tmp && \mv tmp ${k}-on-${i}.genes.${FDRNAME}.tab
 done
+done
 
+
+##------------------------------------
+for i in ${TARGET}
+do
 # Now look into the taleBS table to find the associated taleDE
 \rm -f ${k}-on-${i}.taleDE.tab
 for k in ${DEexp}
@@ -94,51 +99,26 @@ fi
 done
 #--
 #
-echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
- cat - ${k}-on-${i}.taleDE.tab > tmp && \mv tmp ${k}-on-${i}.taleDE.tab
+# echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
+# cat - ${k}-on-${i}.taleDE.tab > tmp && \mv tmp ${k}-on-${i}.taleDE.tab
 done
 done
 
-
-##-------------------------------------
-## Filter for taleDE gene that are within $TALEDIST bp of taleBS, fold change > $MINFC, max tale score < $MAXSCORE
-#Note: 
-# geneStart= winStart + winSize * i
-# geneEnd= (winStart - 1) + winSize * i + winRemainder
-# Example:
-# gene1, geneNUM=1, geneStart=1, geneEnd=1000
-# gene2, geneNUM=2, geneStart=1001, geneEnd=2000
-# So the distance filter
-# ${taleStart} < ${geneNUM}*1000+300
-# ${taleStart} > (${geneNUM}-1)*1000+300
-## Association of the slidingWindow annotation and the tale binding site
-#                                TALEDIST        Gene        TALEDIST
-# SlidingWindow Genes                |-------|xxxxxxxxxx|-------|
-# tale binding site - Neg      |==|                               |==|
-# SlideWindow - Pos               |==|     |==|    |==|    |==|
-# Neg: $taleStart >= $geneNUM*1000+$TALEDIST OR $taleStart <= ($geneNUM-1)*1000-$TALEDIST
-# Pos: $taleStart <= $geneNUM*1000+$TALEDIST AND $taleStart >= ($geneNUM-1)*1000-$TALEDIST
-
+##----------------------------------------------------
 for i in ${TARGET}
 do
 for k in ${DEexp}
 do
-## Filter for taleDE gene that are within $TALEDIST bp of taleBS
-awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
- '{ if ( $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize-taleDist)) print }'\
-  ${k}-on-${i}.taleDE.tab > ${k}-on-${i}.taleDE_foo1.tab  
 ## Filter for ${PostFC} > $MINFC OR ${RealFC} > $MINFC
-awk -v minFC="${MINFC}" '{ if ( $6 >= minFC || $7 >= minFC ) print }' ${k}-on-${i}.taleDE_foo1.tab > ${k}-on-${i}.taleDE_foo2.tab
-## Filter for ${taleScore} < 26.5
-awk -v maxScore="${MAXSCORE}" '{ if ( $12 <= maxScore ) print }' ${k}-on-${i}.taleDE_foo2.tab > ${k}-on-${i}.taleDE_foo3.tab
-## Add header
-echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean talescaffoldID taleStrand taleScore taleStart taleTarget" |\
- cat - ${k}-on-${i}.taleDE_foo3.tab > ${k}-on-${i}.taleDE_flt.tab
-done
-done
+awk -v minFC="${MINFC}" '{ FS=" "; OFS=" "; if ( $6 >= minFC || $7 >= minFC ) print }' ${k}-on-${i}.taleDE.tab\
+ > ${k}-on-${i}.taleDE_flt.tab
 
-# Remove tmp files
-\rm -r *foo*
+## Filter for ${taleScore} < $MAXSCORE. Don't do this here. Instead, do filtering at x5-tale-on-WGscaffold using cutoffmult TSO_x.
+# awk -v maxScore="${MAXSCORE}" '{ FS="\t"; OFS="\t"; if ( $12 <= maxScore ) print }' ${k}-on-${i}.taleDE_flt.tab\
+# > ${k}-on-${i}.taleDE_fltfoo.tab
+
+done
+done
 
 ##-----------------------------------
 ## Annotate the taleDE table with the gth annotation
@@ -149,7 +129,7 @@ do
 #--
 \rm -f ${k}-on-${i}.taleDE_gth.tab
 rowEB=`awk 'END { print NR }' ${k}-on-${i}.taleDE_flt.tab`
-for ((m=2; m<=$rowEB; m++))
+for ((m=1; m<=$rowEB; m++))
 do
 head -$m ${k}-on-${i}.taleDE_flt.tab | tail -1 > recEB-${k}-on-${i}
 scaffoldGeneID=`cut -d" " -f1 recEB-${k}-on-${i}`
@@ -179,15 +159,49 @@ GTHstart=`cut -f4 recGTHrec-${k}-on-${i}`
 GTHend=`cut -f5 recGTHrec-${k}-on-${i}`
 GTHstrand=`cut -f7 recGTHrec-${k}-on-${i}`
 GTHattrib=`cut -f9 recGTHrec-${k}-on-${i}`
-echo "${scaffoldGeneID} ${scaffoldID} ${geneID} ${geneNUM} ${PPDE} ${PostFC} ${RealFC} ${C1Mean} ${C2Mean}\
- ${talescaffoldID} ${taleStrand} ${taleScore} ${taleStart} ${taleTarget}\
- ${GTHscaffoldID} ${GTHstart} ${GTHend} ${GTHstrand} ${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
+echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
 done
+else
+GTHscaffoldID="NA"
+GTHstart="NA"
+GTHend="NA"
+GTHstrand="NA"
+GTHattrib="NA"
+echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
 fi
+
 done
+#--
 done
 done
 
+
+##-------------------------------------
+## Filter for taleDE gene that are within $TALEDIST bp of taleBS
+#Note: 
+# geneStart= winStart + winSize * i
+# geneEnd= (winStart - 1) + winSize * i + winRemainder
+# Example:
+# gene1, geneNUM=1, geneStart=1, geneEnd=1000
+# gene2, geneNUM=2, geneStart=1001, geneEnd=2000
+# So the distance filter
+# ${taleStart} < ${geneNUM}*1000+300
+# ${taleStart} > (${geneNUM}-1)*1000+300
+## Association of the slidingWindow annotation and the tale binding site
+#                                TALEDIST        Gene        TALEDIST
+# SlidingWindow Genes                |-------|xxxxxxxxxx|-------|
+# tale binding site - Neg      |==|                               |==|
+# SlideWindow - Pos               |==|     |==|    |==|    |==|
+# Neg: $taleStart >= $geneNUM*1000+$TALEDIST OR $taleStart <= ($geneNUM-1)*1000-$TALEDIST
+# Pos: $taleStart <= $geneNUM*1000+$TALEDIST AND $taleStart >= ($geneNUM-1)*1000-$TALEDIST
+# (Optional) The $GTHstrand info could be used in the following way:
+# If gene is at strand "+", then $taleStart <= $geneNUM*1000 AND $taleStart >= ($geneNUM-1)*1000-$TALEDIST
+# if gene is at strand "-", then $taleStart <= $geneNUM*1000+$TALEDIST AND $taleStart >= ($geneNUM-1)*1000
+# However, this may rely on the known genes annotated by GenomeThreader, and potentially can miss out noval genes.
 
 ## Association of the slidingWindow annotation with the gth annotation
 #                    Gene1          gthDist    Gene2     gthDist     Gene3
@@ -196,18 +210,37 @@ done
 # SlideWindow - Pos               |==|     |==|    |==|    |==|
 # Neg: $GTHstart >= $geneNUM*1000 OR $GTHend <= ($geneNUM-1)*1000
 # Pos: $GTHstart <= $geneNUM*1000 AND $GTHend >= ($geneNUM-1)*1000
+
 for i in ${TARGET}
 do
 for k in ${DEexp}
 do
-awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v gthDist="${GTHDIST}" '{ OFS="\t"; if ( ($16-gthDist) <= ($4*winSize) && ($17+gthDist) >= (($4-1)*winSize)) print }'\
-  ${k}-on-${i}.taleDE_gth.tab > ${k}-on-${i}.taleDE_gth_flt.tab
+## Filter for taleDE gene that are within $TALEDIST bp of taleBS
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
+ '{ FS="\t"; OFS="\t"; if ( $18=="+" && $13 <= ($4*winSize) && $13 >= (($4-1)*winSize-taleDist)) print }'\
+  ${k}-on-${i}.taleDE_gth.tab > ${k}-on-${i}.taleDE_gth_fltfoo1.tab  
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
+ '{ FS="\t"; OFS="\t"; if ( $18=="-" && $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize)) print }'\
+  ${k}-on-${i}.taleDE_gth.tab > ${k}-on-${i}.taleDE_gth_fltfoo2.tab
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v taleDist="${TALEDIST}"\
+ '{ FS="\t"; OFS="\t"; if ( $18=="NA" && $13 <= ($4*winSize+taleDist) && $13 >= (($4-1)*winSize-taleDist)) print }'\
+  ${k}-on-${i}.taleDE_gth.tab > ${k}-on-${i}.taleDE_gth_fltfoo3.tab
+cat ${k}-on-${i}.taleDE_gth_fltfoo1.tab ${k}-on-${i}.taleDE_gth_fltfoo2.tab ${k}-on-${i}.taleDE_gth_fltfoo3.tab\
+ | sort > ${k}-on-${i}.taleDE_gth_fltfoo4.tab
+
+## Association of the slidingWindow annotation with the gth annotation
+awk -v winStart="${WINSTART}" -v winSize="${WINSIZE}" -v gthDist="${GTHDIST}" '{ FS="\t"; OFS="\t"; \
+ if ( ($18!="NA") && ($16-gthDist) <= ($4*winSize) && ($17+gthDist) >= (($4-1)*winSize)) print }'\
+ ${k}-on-${i}.taleDE_gth_fltfoo4.tab > ${k}-on-${i}.taleDE_gth_fltfoo5.tab
+awk '{ FS="\t"; OFS="\t"; if ($18=="NA") print }' ${k}-on-${i}.taleDE_gth_fltfoo4.tab > ${k}-on-${i}.taleDE_gth_fltfoo6.tab
+cat ${k}-on-${i}.taleDE_gth_fltfoo5.tab ${k}-on-${i}.taleDE_gth_fltfoo6.tab\
+ | sort > ${k}-on-${i}.taleDE_gth_flt.tab
 
 ## Add header
-echo "scaffoldGeneID scaffoldID geneID geneNUM PPDE PostFC RealFC C1Mean C2Mean\
- talescaffoldID taleStrand taleScore taleStart taleTarget\
- GTHscaffoldID GTHstart GTHend GTHstrand GTHattrib" |\
- cat - ${k}-on-${i}.taleDE_gth_flt.tab > tmp && \mv tmp ${k}-on-${i}.taleDE_gth_flt.tab
+# echo -e "scaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
+# \ttalescaffoldID\ttaleStrand\ttaleScore\ttaleStart\ttaleTarget\
+# \tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib" |\
+#  cat - ${k}-on-${i}.taleDE_gth_flt.tab > tmp && \mv tmp ${k}-on-${i}.taleDE_gth_flt.tab
 
 done 
 done
@@ -215,14 +248,23 @@ done
 ## Combine DEexp experiments by writing into individual $scaffoldGeneID files
 for i in ${TARGET}
 do
+\rm -f ${i}.taleDE_gth_exp.tab
 for k in ${DEexp}
 do
-${k}-on-${i}.taleDE_gth_flt.tab
-
+awk -v deexp="${k}" '{ print deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_flt.tab > ${k}-on-${i}.taleDE_gth_exp.tab
+cat ${k}-on-${i}.taleDE_gth_exp.tab >> ${i}.taleDE_gth_exp.tab
+done 
+sort -k2 ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
+## Add header
+echo -e "DEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
+\ttalescaffoldID\ttaleStrand\ttaleScore\ttaleStart\ttaleTarget\
+\tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib" |\
+ cat - ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
+done
 
 
 ## Remove tmp files
-\rm recEB*
-\rm recGTH*
-
+\rm -f *foo*
+\rm -f recEB*
+\rm -f recGTH*
 
