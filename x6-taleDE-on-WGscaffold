@@ -163,15 +163,6 @@ GTHattrib=`cut -f9 recGTHrec-${k}-on-${i}`
 echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
 \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
 \t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth.tab
-
-## Potentially add the gene description details at this step.
-# GTHtarget=`echo $GTHattrib | sed -n 's/.*Target=\(.*\)-.*/\1/p'`
-# grep "\b$GTHtarget\b" gth.${GTH_PRTDB}-on-${i} | sed -n 's/.*\(".*"\).*/\1/p' > GTHdescrpt-${k}-on-${i}
-# GTHdescrpt=`cat GTHdescrpt-${k}-on-${i}`
-# echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
-# \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
-# \t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
-
 done
 else
 GTHscaffoldID="NA"
@@ -269,6 +260,12 @@ done
 # "Note\x3dHypothetical gene., Transcript_evidence\x3dAK288552 (DDBJ, Best hit), ORF_evidence\x3dlongestORF, NIAS_FLcDNA\x3dJ090046N08,"
 # into this sed result:
 # "Note\x3dHypothetical gene., Transcript_evidence\x3dAK288552 (DDBJ, Best hit), ORF_evidence\x3dlongestORF, NIAS_FLcDNA\x3dJ090046N08,"
+#
+# Check if the intended Target such as "OS04T0514150-01" is present before doing grep, as
+# in case of $GTHattrib=="NA", $GTHgeneID become "Null", and grep using $GTHgeneID become infinite loop
+# Note that "-01" is used as there are cases for alternative transcribed protein annotation.
+# Also there can be more than one Target gth genes, such as 
+# GTHattrib: ID=mRNA24749;Parent=gene23513;Target=OS07T0125201-00 1 173 +,OS07T0126100-00 1 173 +,OS07T0126500-00 1 173 +,OS07T0127700-01 1 52 +
 
 
 for i in ${TARGET}
@@ -299,26 +296,36 @@ GTHstart=`cut -f16 rowGTH-${i}`
 GTHend=`cut -f17 rowGTH-${i}`
 GTHstrand=`cut -f18 rowGTH-${i}`
 GTHattrib=`cut -f19 rowGTH-${i}`
-
-# Check if the intended Target such as "OS04T0514150-01" is present before doing grep
-# Note that "-01" is used as there are cases for alternative transcribed protein annotation.
-# GTHattrib: ID=mRNA11901;Parent=gene11805;Target=OS09T0569800-00 1 859 +
-# In case of $GTHattrib=="NA", $GTHgeneID become "Null", and grep using $GTHgeneID become infinite loop
 #
-# echo $GTHattrib | sed -n 's/.*Target=\(.*\b\).*/\1/p' > GTHgeneID-${i}
-echo $GTHattrib | sed -n 's/.*Target=\(.*-.\{2\}\).*/\1/p' > GTHgeneID-${i}
+echo $GTHattrib | sed -n 's/.*Target=\(.*\)/\1/p' |\
+sed 's/,/\n/g;' | cut -d" " -f1 > GTHgeneID-${i}
 if [ -s GTHgeneID-${i} ]
 then
-GTHgeneID=`cat GTHgeneID-${i}`
-grep "\b$GTHgeneID\b" ${GTH_PRTDB} | sed -n 's/.*\("Note.*"\).*/\1/p' > GTHdescrpt-${i}
-GTHdescrpt=`cat GTHdescrpt-${i}`
-else
-GTHgeneID=NA
-GTHdescrpt=NA
-fi
+\rm -f GTHgeneIDs-${i}
+\rm -f GTHdescrpts-${i}
+rowGTHgene=`awk 'END { print NR }' GTHgeneID-${i}`
+for ((p=1; p<=$rowGTHgene; p++))
+do
+GTHgeneIDs=`head -$p GTHgeneID-${i} | tail -1`
+grep "\b$GTHgeneIDp\b" ${GTH_PRTDB} | sed -n 's/.*\("Note.*"\).*/\1/p' > GTHdescrpt-${i}
+GTHdescrpts=`cat GTHdescrpt-${i}`
+# echo -n to concatenate $GTHgeneIDs 
+echo -n "${GTHgeneIDs};" >> GTHgeneIDs-${i} 
+echo -n "${GTHdescrpts};" >> GTHdescrpts-${i}
+done
+GTHgeneID=`cat GTHgeneIDs-${i}`
+GTHdescrpt=`cat GTHdescrpts-${i}`
 echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
 \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
 \t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneID}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth_ann.tab
+
+else
+GTHgeneID=NA
+GTHdescrpt=NA
+echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneID}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth_ann.tab
+fi
 done
 done
 done
