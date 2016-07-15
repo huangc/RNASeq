@@ -30,7 +30,8 @@ mkdir -p taleDE
 cd taleDE
 cp -s ${WORK_DIR}/run/tale_${runNAME}/taleAVRXA7all-on-*.txt .
 cp -s ${WORK_DIR}/run/ebseq-on-WGscaffolds/*-on-*.genes.${FDRNAME}.txt .
-cp -s ${WORK_DIR}/run/gth-on-WGscaffold/gth.*-on-*.gff3 .
+cp -s ${WORK_DIR}/run/gth-on-WGscaffold/gth.*-on-* .
+cp -s ${WORK_DIR}/reference/rice_japonica/OsjPRT .
 
 for i in ${TARGET}
 do
@@ -161,7 +162,16 @@ GTHstrand=`cut -f7 recGTHrec-${k}-on-${i}`
 GTHattrib=`cut -f9 recGTHrec-${k}-on-${i}`
 echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
 \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
-\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth.tab
+
+## Potentially add the gene description details at this step.
+# GTHtarget=`echo $GTHattrib | sed -n 's/.*Target=\(.*\)-.*/\1/p'`
+# grep "\b$GTHtarget\b" gth.${GTH_PRTDB}-on-${i} | sed -n 's/.*\(".*"\).*/\1/p' > GTHdescrpt-${k}-on-${i}
+# GTHdescrpt=`cat GTHdescrpt-${k}-on-${i}`
+# echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+# \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+# \t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}" >> ${k}-on-${i}.taleDE_gth.tab
+
 done
 else
 GTHscaffoldID="NA"
@@ -245,21 +255,91 @@ cat ${k}-on-${i}.taleDE_gth_fltfoo5.tab ${k}-on-${i}.taleDE_gth_fltfoo6.tab\
 done 
 done
 
+
+##-------------------------------------------------
+## Add more detailed description to gth annotation
+# GTHattrib: ID=mRNA11901;Parent=gene11805;Target=OS09T0569800-00 1 859 +
+# Find "OS04T0514150-01", use the Target to grep more details in gth.OsjPRT-on-IRBB7LR or OsjPRT
+# grep "\bOS04T0514150\b" gth.OsjPRT-on-IRBB7LR | sed -n 's/.*\(".*"\).*/\1/p' returns 20 results
+# When there are many matches for OS04T0514150 in gth.OsjPRT-on-IRBB7LR, the return is not a unique result.
+# use OsjPRT instead. grep "\bOS04T0514150\b" OsjPRT | sed -n 's/.*\(".*"\).*/\1/p' always return unique result.
+#
+# Turn this grep result:
+# >OS04T0514150-01 pep:novel chromosome:IRGSP-1.0:4:25681530:25687116:1 gene:OS04G0514150 transcript:OS04T0514150-01 description:
+# "Note\x3dHypothetical gene., Transcript_evidence\x3dAK288552 (DDBJ, Best hit), ORF_evidence\x3dlongestORF, NIAS_FLcDNA\x3dJ090046N08,"
+# into this sed result:
+# "Note\x3dHypothetical gene., Transcript_evidence\x3dAK288552 (DDBJ, Best hit), ORF_evidence\x3dlongestORF, NIAS_FLcDNA\x3dJ090046N08,"
+
+
+for i in ${TARGET}
+do
+for k in ${DEexp}
+do
+\rm -f ${k}-on-${i}.taleDE_gth_ann.tab
+rowGTH=`awk 'END { print NR }' ${k}-on-${i}.taleDE_gth_flt.tab`
+for ((m=1; m<=$rowGTH; m++))
+do
+head -$m ${k}-on-${i}.taleDE_gth_flt.tab | tail -1 > rowGTH-${i}
+scaffoldGeneID=`cut -f1 rowGTH-${i}`
+scaffoldID=`cut -f2 rowGTH-${i}`
+geneID=`cut -f3 rowGTH-${i}`
+geneNUM=`cut -f4 rowGTH-${i}`
+PPDE=`cut -f5 rowGTH-${i}`
+PostFC=`cut -f6 rowGTH-${i}`
+RealFC=`cut -f7 rowGTH-${i}`
+C1Mean=`cut -f8 rowGTH-${i}`
+C2Mean=`cut -f9 rowGTH-${i}`
+talescaffoldID=`cut -f10 rowGTH-${i}`
+taleStrand=`cut -f11 rowGTH-${i}`
+taleScore=`cut -f12 rowGTH-${i}`
+taleStart=`cut -f13 rowGTH-${i}`
+taleTarget=`cut -f14 rowGTH-${i}`
+GTHscaffoldID=`cut -f15 rowGTH-${i}`
+GTHstart=`cut -f16 rowGTH-${i}`
+GTHend=`cut -f17 rowGTH-${i}`
+GTHstrand=`cut -f18 rowGTH-${i}`
+GTHattrib=`cut -f19 rowGTH-${i}`
+
+# Check if the intended Target such as "OS04T0514150-01" is present before doing grep
+# Note that "-01" is used as there are cases for alternative transcribed protein annotation.
+# GTHattrib: ID=mRNA11901;Parent=gene11805;Target=OS09T0569800-00 1 859 +
+# In case of $GTHattrib=="NA", $GTHgeneID become "Null", and grep using $GTHgeneID become infinite loop
+#
+# echo $GTHattrib | sed -n 's/.*Target=\(.*\b\).*/\1/p' > GTHgeneID-${i}
+echo $GTHattrib | sed -n 's/.*Target=\(.*-.\{2\}\).*/\1/p' > GTHgeneID-${i}
+if [ -s GTHgeneID-${i} ]
+then
+GTHgeneID=`cat GTHgeneID-${i}`
+grep "\b$GTHgeneID\b" ${GTH_PRTDB} | sed -n 's/.*\("Note.*"\).*/\1/p' > GTHdescrpt-${i}
+GTHdescrpt=`cat GTHdescrpt-${i}`
+else
+GTHgeneID=NA
+GTHdescrpt=NA
+fi
+echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneID}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth_ann.tab
+done
+done
+done
+
+
+##--------------------------------
 ## Combine DEexp experiments by writing into individual $scaffoldGeneID files
 for i in ${TARGET}
 do
 \rm -f ${i}.taleDE_gth_exp.tab
 for k in ${DEexp}
 do
-awk -v target="${i}" -v deexp="${k}" '{ print target"\t"deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_flt.tab > ${k}-on-${i}.taleDE_gth_exp.tab
-cat ${k}-on-${i}.taleDE_gth_exp.tab >> ${i}.taleDE_gth_exp.tab
+awk -v target="${i}" -v deexp="${k}" '{ print target"\t"deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_ann.tab > ${k}-on-${i}.taleDE_gth_DEexp.tab
+cat ${k}-on-${i}.taleDE_gth_DEexp.tab >> ${i}.taleDE_gth_DEexp.tab
 done 
-sort -k2 ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
+sort -k2 ${i}.taleDE_gth_DEexp.tab > tmp && \mv tmp ${i}.taleDE_gth_DEexp.tab
 ## Add header
 echo -e "Target\tDEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
 \ttalescaffoldID\ttaleStrand\ttaleScore\ttaleStart\ttaleTarget\
-\tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib" |\
- cat - ${i}.taleDE_gth_exp.tab > tmp && \mv tmp ${i}.taleDE_gth_exp.tab
+\tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib\tGTHgeneID\tGTHdescrpt" |\
+ cat - ${i}.taleDE_gth_DEexp.tab > tmp && \mv tmp ${i}.taleDE_gth_DEexp.tab
 done
 
 
