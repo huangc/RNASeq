@@ -335,7 +335,7 @@ done
 ## Combine DEexp experiments by writing into individual $scaffoldGeneID files
 for i in ${TARGET}
 do
-\rm -f ${i}.taleDE_gth_exp.tab
+\rm -f ${i}.taleDE_gth_DEexp.tab
 for k in ${DEexp}
 do
 awk -v target="${i}" -v deexp="${k}" '{ print target"\t"deexp"\t"$0 }' ${k}-on-${i}.taleDE_gth_ann.tab > ${k}-on-${i}.taleDE_gth_DEexp.tab
