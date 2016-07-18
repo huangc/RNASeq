@@ -30,6 +30,7 @@ mkdir -p taleDE
 cd taleDE
 cp -s ${WORK_DIR}/run/tale_${runNAME}/taleAVRXA7all-on-*.txt .
 cp -s ${WORK_DIR}/run/ebseq-on-WGscaffolds/*-on-*.genes.${FDRNAME}.txt .
+cp -s ${WORK_DIR}/run/ebseq-on-WGscaffolds/*-on-*.genes.counts.matrix.results .
 cp -s ${WORK_DIR}/run/gth-on-WGscaffold/gth.*-on-* .
 cp -s ${WORK_DIR}/reference/rice_japonica/OsjPRT .
 
@@ -276,55 +277,55 @@ do
 rowGTH=`awk 'END { print NR }' ${k}-on-${i}.taleDE_gth_flt.tab`
 for ((m=1; m<=$rowGTH; m++))
 do
-head -$m ${k}-on-${i}.taleDE_gth_flt.tab | tail -1 > rowGTH-${i}
-scaffoldGeneID=`cut -f1 rowGTH-${i}`
-scaffoldID=`cut -f2 rowGTH-${i}`
-geneID=`cut -f3 rowGTH-${i}`
-geneNUM=`cut -f4 rowGTH-${i}`
-PPDE=`cut -f5 rowGTH-${i}`
-PostFC=`cut -f6 rowGTH-${i}`
-RealFC=`cut -f7 rowGTH-${i}`
-C1Mean=`cut -f8 rowGTH-${i}`
-C2Mean=`cut -f9 rowGTH-${i}`
-talescaffoldID=`cut -f10 rowGTH-${i}`
-taleStrand=`cut -f11 rowGTH-${i}`
-taleScore=`cut -f12 rowGTH-${i}`
-taleStart=`cut -f13 rowGTH-${i}`
-taleTarget=`cut -f14 rowGTH-${i}`
-GTHscaffoldID=`cut -f15 rowGTH-${i}`
-GTHstart=`cut -f16 rowGTH-${i}`
-GTHend=`cut -f17 rowGTH-${i}`
-GTHstrand=`cut -f18 rowGTH-${i}`
-GTHattrib=`cut -f19 rowGTH-${i}`
+head -$m ${k}-on-${i}.taleDE_gth_flt.tab | tail -1 > recGTH
+scaffoldGeneID=`cut -f1 recGTH`
+scaffoldID=`cut -f2 recGTH`
+geneID=`cut -f3 recGTH`
+geneNUM=`cut -f4 recGTH`
+PPDE=`cut -f5 recGTH`
+PostFC=`cut -f6 recGTH`
+RealFC=`cut -f7 recGTH`
+C1Mean=`cut -f8 recGTH`
+C2Mean=`cut -f9 recGTH`
+talescaffoldID=`cut -f10 recGTH`
+taleStrand=`cut -f11 recGTH`
+taleScore=`cut -f12 recGTH`
+taleStart=`cut -f13 recGTH`
+taleTarget=`cut -f14 recGTH`
+GTHscaffoldID=`cut -f15 recGTH`
+GTHstart=`cut -f16 recGTH`
+GTHend=`cut -f17 recGTH`
+GTHstrand=`cut -f18 recGTH`
+GTHattrib=`cut -f19 recGTH`
 #
 echo $GTHattrib | sed -n 's/.*Target=\(.*\)/\1/p' |\
-sed 's/,/\n/g;' | cut -d" " -f1 > GTHgeneID-${i}
-if [ -s GTHgeneID-${i} ]
+ sed 's/,/\n/g;' | cut -d" " -f1 > GTHgene
+if [ -s GTHgene ]
 then
-\rm -f GTHgeneIDs-${i}
-\rm -f GTHdescrpts-${i}
-rowGTHgene=`awk 'END { print NR }' GTHgeneID-${i}`
+\rm -f GTHgeneIDs
+\rm -f GTHgeneDSCs
+rowGTHgene=`awk 'END { print NR }' GTHgene`
 for ((p=1; p<=$rowGTHgene; p++))
 do
-GTHgeneIDs=`head -$p GTHgeneID-${i} | tail -1`
-grep "\b$GTHgeneIDp\b" ${GTH_PRTDB} | sed -n 's/.*\("Note.*"\).*/\1/p' > GTHdescrpt-${i}
-GTHdescrpts=`cat GTHdescrpt-${i}`
-# echo -n to concatenate $GTHgeneIDs 
-echo -n "${GTHgeneIDs};" >> GTHgeneIDs-${i} 
-echo -n "${GTHdescrpts};" >> GTHdescrpts-${i}
+GTHgeneID=`head -$p GTHgene | tail -1`
+grep "\b$GTHgeneID\b" ${GTH_PRTDB} | sed -n 's/.*\("Note.*"\).*/\1/p' > GTHgeneDSC
+GTHgeneDSC=`cat GTHgeneDSC`
+# echo -n to concatenate all $GTHgeneID and all $GTHgeneDSC
+echo -n "${GTHgeneID};" >> GTHgeneIDs
+echo -n "${GTHgeneDSC};" >> GTHgeneDSCs
 done
-GTHgeneID=`cat GTHgeneIDs-${i}`
-GTHdescrpt=`cat GTHdescrpts-${i}`
+GTHgeneIDs=`cat GTHgeneIDs`
+GTHgeneDSCs=`cat GTHgeneDSCs`
 echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
 \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
-\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneID}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth_ann.tab
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneIDs}\t${GTHgeneDSCs}" >> ${k}-on-${i}.taleDE_gth_ann.tab
 
 else
-GTHgeneID=NA
-GTHdescrpt=NA
+GTHgeneIDs=NA
+GTHgeneDSCs=NA
 echo -e "${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
 \t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
-\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneID}\t${GTHdescrpt}" >> ${k}-on-${i}.taleDE_gth_ann.tab
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneIDs}\t${GTHgeneDSCs}" >> ${k}-on-${i}.taleDE_gth_ann.tab
 fi
 done
 done
@@ -332,7 +333,104 @@ done
 
 
 ##--------------------------------
-## Combine DEexp experiments by writing into individual $scaffoldGeneID files
+## Combine DEexp experiments with respect to the DE genes by scaffoldGeneID in BvsA DEexp
+#-------
+for i in ${TARGET}
+do
+\rm -f ${i}.taleDE_gth_DEexp.tab
+# go through $scaffoldGeneID in BvsA-on-${i}.taleDE_gth_ann.tab, and retrieve rows of matching $scaffoldGeneID from CvsA and BvsC-on-${i}.genes.counts.matrix.results  
+rowGTHann=`awk 'END { print NR }' BvsA-on-${i}.taleDE_gth_ann.tab`
+#-----
+for ((r=1; r<=$rowGTHann; r++))
+do
+head -$r BvsA-on-${i}.taleDE_gth_ann.tab | tail -1 > recGTHann
+scaffoldGeneID=`cut -f1 recGTHann`
+scaffoldID=`cut -f2 recGTHann`
+geneID=`cut -f3 recGTHann`
+geneNUM=`cut -f4 recGTHann`
+PPDE=`cut -f5 recGTHann`
+PostFC=`cut -f6 recGTHann`
+RealFC=`cut -f7 recGTHann`
+C1Mean=`cut -f8 recGTHann`
+C2Mean=`cut -f9 recGTHann`
+talescaffoldID=`cut -f10 recGTHann`
+taleStrand=`cut -f11 recGTHann`
+taleScore=`cut -f12 recGTHann`
+taleStart=`cut -f13 recGTHann`
+taleTarget=`cut -f14 recGTHann`
+GTHscaffoldID=`cut -f15 recGTHann`
+GTHstart=`cut -f16 recGTHann`
+GTHend=`cut -f17 recGTHann`
+GTHstrand=`cut -f18 recGTHann`
+GTHattrib=`cut -f19 recGTHann`
+GTHgeneIDs=`cut -f20 recGTHann`
+GTHgeneDSCs=`cut -f21 recGTHann`
+
+# BvsA
+k=BvsA
+# grep "\b$scaffoldGeneID\b" BvsA-on-${i}.taleDE_gth_ann.tab >> ${i}.taleDE_gth_DEexp.tab
+echo -e "${i}\t${k}\t${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneIDs}\t${GTHgeneDSCs}" >> ${i}.taleDE_gth_DEexp.tab
+
+# CvsA and BvsC
+DEexp="CvsA BvsC"
+#---
+for k in ${DEexp}
+do
+scaffoldID=NA
+geneID=NA
+geneNUM=NA
+talescaffoldID=NA
+taleStrand=NA
+taleScore=NA
+taleStart=NA
+taleTarget=NA
+GTHscaffoldID=NA
+GTHstart=NA
+GTHend=NA
+GTHstrand=NA
+GTHattrib=NA
+GTHgeneIDs=NA
+GTHgeneDSCs=NA
+
+grep "\b$scaffoldGeneID\b" ${k}-on-${i}.genes.counts.matrix.results > recDEexp_${k}
+if [ -s recDEexp_${k} ]
+then
+scaffoldGeneID=`cut -f1 recDEexp_${k} | sed 's/"//g;'`
+PPDE=`cut -f3 recDEexp_${k}`
+PostFC=`cut -f4 recDEexp_${k}`
+RealFC=`cut -f5 recDEexp_${k}`
+C1Mean=`cut -f6 recDEexp_${k}`
+C2Mean=`cut -f7 recDEexp_${k}`
+
+else
+PPEE=NA
+PPDE=NA
+PostFC=NA
+RealFC=NA
+C1Mean=NA
+C2Mean=NA
+fi
+
+echo -e "${i}\t${k}\t${scaffoldGeneID}\t${scaffoldID}\t${geneID}\t${geneNUM}\t${PPDE}\t${PostFC}\t${RealFC}\t${C1Mean}\t${C2Mean}\
+\t${talescaffoldID}\t${taleStrand}\t${taleScore}\t${taleStart}\t${taleTarget}\
+\t${GTHscaffoldID}\t${GTHstart}\t${GTHend}\t${GTHstrand}\t${GTHattrib}\t${GTHgeneIDs}\t${GTHgeneDSCs}" >> ${i}.taleDE_gth_DEexp.tab
+done
+#---
+
+done
+#-----
+## Add header
+echo -e "Target\tDEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostFC\tRealFC\tC1Mean\tC2Mean\
+\ttalescaffoldID\ttaleStrand\ttaleScore\ttaleStart\ttaleTarget\
+\tGTHscaffoldID\tGTHstart\tGTHend\tGTHstrand\tGTHattrib\tGTHgeneIDs\tGTHgeneDSCs" |\
+ cat - ${i}.taleDE_gth_DEexp.tab > tmp && \mv tmp ${i}.taleDE_gth_DEexp.tab
+done
+
+
+
+##-------------------
 for i in ${TARGET}
 do
 \rm -f ${i}.taleDE_gth_DEexp.tab
@@ -349,7 +447,7 @@ echo -e "Target\tDEexp\tscaffoldGeneID\tscaffoldID\tgeneID\tgeneNUM\tPPDE\tPostF
  cat - ${i}.taleDE_gth_DEexp.tab > tmp && \mv tmp ${i}.taleDE_gth_DEexp.tab
 done
 
-
+##------------------
 ## Remove tmp files
 \rm -f *foo*
 \rm -f recEB*
